@@ -1,13 +1,15 @@
 import { supabase } from '../lib/supabase'
 import React, { useState, useEffect } from 'react'
 import { getInvoices, markInvoicePaid, getExpenses, addExpense, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
-import { CheckCircle, MessageCircle, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle, MessageCircle, Plus, Trash2, Edit2 } from 'lucide-react'
 
 // ── INVOICES ──
 export function Invoices() {
   const [invoices, setInvoices] = useState([])
   const [filter, setFilter] = useState('all')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [editInv, setEditInv] = useState(null)
+  const [editData, setEditData] = useState({})
 
   useEffect(() => {
     getInvoices().then(({ data }) => { if (data?.length) setInvoices(data) })
@@ -28,6 +30,14 @@ export function Invoices() {
     setConfirmDelete(null)
   }
 
+  const openEdit = (inv) => { setEditInv(inv); setEditData({ client_name: inv.client_name, amount: inv.amount, status: inv.status, payment_method: inv.payment_method || 'bKash', client_phone: inv.client_phone || '' }) }
+
+  const saveEdit = async () => {
+    await supabase.from('invoices').update({ ...editData, amount: Number(editData.amount) }).eq('id', editInv.id)
+    setInvoices(list => list.map(i => i.id === editInv.id ? { ...i, ...editData, amount: Number(editData.amount) } : i))
+    setEditInv(null)
+  }
+
   return (
     <div>
       {confirmDelete && (
@@ -40,6 +50,31 @@ export function Invoices() {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               <button className="btn btn-full" onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button className="btn btn-full" style={{ background:'var(--danger)', color:'#fff', border:'none' }} onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editInv && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:340, width:'100%' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Edit Invoice</div>
+            <div className="form-group"><label className="form-label">Client name</label><input className="form-input" value={editData.client_name} onChange={e=>setEditData(d=>({...d,client_name:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={editData.client_phone} onChange={e=>setEditData(d=>({...d,client_phone:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editData.amount} onChange={e=>setEditData(d=>({...d,amount:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Payment method</label>
+              <select className="form-select" value={editData.payment_method} onChange={e=>setEditData(d=>({...d,payment_method:e.target.value}))}>
+                {['bKash','Nagad','Bank transfer','Cash'].map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label className="form-label">Status</label>
+              <select className="form-select" value={editData.status} onChange={e=>setEditData(d=>({...d,status:e.target.value}))}>
+                {['unpaid','paid','overdue'].map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
+              <button className="btn btn-full" onClick={() => setEditInv(null)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={saveEdit}>Save</button>
             </div>
           </div>
         </div>
@@ -74,6 +109,9 @@ export function Invoices() {
                   <div style={{ fontWeight: 700, fontSize: 14 }}>৳{inv.amount}</div>
                   <span className={`badge ${inv.status}`}>{inv.status}</span>
                 </div>
+                <button onClick={() => openEdit(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--navy)', padding:4 }}>
+                  <Edit2 size={15} />
+                </button>
                 <button onClick={() => setConfirmDelete(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--danger)', padding:4 }}>
                   <Trash2 size={15} />
                 </button>
@@ -103,7 +141,7 @@ export function Invoices() {
 }
 
 // ── FINANCE ──
-const CATS = ['Advertising','Tools','Communication','Bank fees','Miscellaneous']
+const DEFAULT_CATS = ['Advertising','Tools','Communication','Bank fees','Miscellaneous']
 
 export function Finance() {
   const [tab, setTab] = useState('summary')
@@ -113,6 +151,10 @@ export function Finance() {
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [customCats, setCustomCats] = useState([])
+  const [addingCat, setAddingCat] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const CATS = [...DEFAULT_CATS, ...customCats]
 
   useEffect(() => {
     // Load expenses from Supabase
@@ -241,9 +283,20 @@ export function Finance() {
               <div className="card-body">
                 <div className="form-group"><label className="form-label">Description</label><input className="form-input" placeholder="e.g. Facebook ad" value={newExp.description} onChange={e=>setNewExp(n=>({...n,description:e.target.value}))} /></div>
                 <div className="form-group"><label className="form-label">Category</label>
-                  <select className="form-select" value={newExp.category} onChange={e=>setNewExp(n=>({...n,category:e.target.value}))}>
-                    {CATS.map(c=><option key={c}>{c}</option>)}
-                  </select>
+                  <div style={{display:'flex',gap:6}}>
+                    <select className="form-select" style={{flex:1}} value={newExp.category} onChange={e=>setNewExp(n=>({...n,category:e.target.value}))}>
+                      {CATS.map(c=><option key={c}>{c}</option>)}
+                    </select>
+                    {addingCat ? (
+                      <div style={{display:'flex',gap:4}}>
+                        <input className="form-input" style={{width:100}} placeholder="Category name" value={newCatName} onChange={e=>setNewCatName(e.target.value)} />
+                        <button className="btn btn-primary btn-sm" onClick={()=>{ if(newCatName.trim()){setCustomCats(c=>[...c,newCatName.trim()]);setNewExp(n=>({...n,category:newCatName.trim()}));setNewCatName('');setAddingCat(false)} }}>Add</button>
+                        <button className="btn btn-sm" onClick={()=>{setAddingCat(false);setNewCatName('')}}>✕</button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-sm" style={{whiteSpace:'nowrap'}} onClick={()=>setAddingCat(true)}>+ New</button>
+                    )}
+                  </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={newExp.amount} onChange={e=>setNewExp(n=>({...n,amount:e.target.value}))} /></div>

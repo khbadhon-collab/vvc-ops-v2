@@ -72,6 +72,11 @@ export default function CaseDetail() {
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [editingCase, setEditingCase] = useState(false)
+  const [editData, setEditData] = useState({})
+  const [notes, setNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [reportFile, setReportFile] = useState(null)
 
   useEffect(() => {
     loadCase()
@@ -83,6 +88,8 @@ export default function CaseDetail() {
       setCaseData(data)
       if (data.report_text) setReportText(data.report_text)
       if (data.report_text) setApproved(true)
+      if (data.notes) setNotes(data.notes)
+      setEditData({ client_name: data.client_name, client_phone: data.client_phone || '', country: data.country, doc_type: data.doc_type, amount: data.amount })
     }
   }
 
@@ -132,6 +139,27 @@ export default function CaseDetail() {
       showError('Receipt upload failed')
     }
     setReceiptUploading(false)
+  }
+
+  const saveEditCase = async () => {
+    await updateCase(id, editData)
+    setCaseData(prev => ({ ...prev, ...editData }))
+    setEditingCase(false)
+    showSuccess('Case updated')
+  }
+
+  const saveNotes = async () => {
+    setSavingNotes(true)
+    await updateCase(id, { notes })
+    setSavingNotes(false)
+    showSuccess('Notes saved')
+  }
+
+  const handleReportFileUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setReportFile(file)
+    showSuccess(`Report file selected: ${file.name}`)
   }
 
   const runAnalysis = async (uploadedFiles) => {
@@ -249,14 +277,33 @@ Please analyze these documents and generate the full verification report.`
           <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>{c.case_id} · {c.country} · {c.doc_type}</div>
         </div>
         <span className={`badge ${c.status || 'new'}`}>{c.status || 'new'}</span>
+        <button className="btn btn-sm" onClick={() => setEditingCase(true)} style={{padding:'5px 10px'}}><Edit2 size={13} /></button>
       </div>
+
+      {editingCase && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:340, width:'100%' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Edit Case</div>
+            <div className="form-group"><label className="form-label">Client name</label><input className="form-input" value={editData.client_name||''} onChange={e=>setEditData(d=>({...d,client_name:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={editData.client_phone||''} onChange={e=>setEditData(d=>({...d,client_phone:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Country</label><input className="form-input" value={editData.country||''} onChange={e=>setEditData(d=>({...d,country:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Document type</label><input className="form-input" value={editData.doc_type||''} onChange={e=>setEditData(d=>({...d,doc_type:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editData.amount||''} onChange={e=>setEditData(d=>({...d,amount:e.target.value}))} /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
+              <button className="btn btn-full" onClick={() => setEditingCase(false)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={saveEditCase}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="tabs">
-        {['analysis', 'report', 'actions'].map(t => (
+        {['analysis', 'report', 'notes', 'actions'].map(t => (
           <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
             {t === 'report' && reportText && <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />}
+            {t === 'notes' && notes && <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'inline-block' }} />}
           </button>
         ))}
       </div>
@@ -372,6 +419,45 @@ Please analyze these documents and generate the full verification report.`
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* NOTES TAB */}
+      {tab === 'notes' && (
+        <div>
+          <div className="card mb-12">
+            <div className="card-header">Case notes & advice</div>
+            <div className="card-body">
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Write your advice, observations, or notes about this case here..."
+                style={{ width:'100%', minHeight:220, padding:12, border:'1px solid var(--border)', borderRadius:8, fontSize:13, lineHeight:1.7, resize:'vertical', fontFamily:'-apple-system,sans-serif' }}
+              />
+              <button className="btn btn-primary btn-full" style={{marginTop:10, padding:11}} onClick={saveNotes} disabled={savingNotes}>
+                {savingNotes ? 'Saving...' : 'Save notes'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">Send report file to client</div>
+            <div className="card-body">
+              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Upload your VVC report PDF/DOCX, then open WhatsApp and manually attach it to send to the client.</div>
+              <label className="upload-zone" style={{padding:14,cursor:'pointer'}}>
+                <Upload size={18} style={{margin:'0 auto 4px',display:'block'}} />
+                <p style={{fontSize:12.5}}>{reportFile ? `✅ ${reportFile.name}` : 'Tap to select report file'}</p>
+                <span style={{fontSize:11.5,color:'var(--text3)'}}>PDF · DOCX</span>
+                <input type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={handleReportFileUpload} />
+              </label>
+              {reportFile && (
+                <a href={buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict || 'See attached report'))}
+                  target="_blank" rel="noreferrer" className="btn btn-wa btn-full" style={{marginTop:10,justifyContent:'center'}}>
+                  <MessageCircle size={14} /> Open WhatsApp → attach & send
+                </a>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
