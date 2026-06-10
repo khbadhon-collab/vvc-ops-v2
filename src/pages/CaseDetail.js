@@ -135,8 +135,19 @@ export default function CaseDetail() {
   }
 
   const runAnalysis = async (uploadedFiles) => {
-    const settings = JSON.parse(localStorage.getItem('vvc_settings') || '{}')
-    const geminiKey = settings.gemini_api_key || ''
+    let settings = JSON.parse(localStorage.getItem('vvc_settings') || '{}')
+    let geminiKey = settings.gemini_api_key || ''
+    if (!geminiKey) {
+      // Fall back to Supabase
+      try {
+        const { data } = await supabase.from('settings').select('gemini_api_key').eq('id', 1).single()
+        if (data?.gemini_api_key) {
+          geminiKey = data.gemini_api_key
+          // Cache to localStorage for next time
+          localStorage.setItem('vvc_settings', JSON.stringify({ ...settings, gemini_api_key: geminiKey }))
+        }
+      } catch (e) {}
+    }
     if (!geminiKey) {
       showError('Gemini API key not set. Go to Settings and add your Gemini API key.')
       return
@@ -171,6 +182,12 @@ Please analyze these documents and generate the full verification report.`
         }
       )
       const data = await response.json()
+      console.log('Gemini response:', JSON.stringify(data))
+      if (data?.error) {
+        showError(`Gemini error: ${data.error.message}`)
+        setAnalyzing(false)
+        return
+      }
       const reportContent = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Analysis failed. Please try again.'
       setReportText(reportContent)
       const verdict = reportContent.includes('FRAUDULENT') ? 'CONFIRMED FRAUDULENT'
