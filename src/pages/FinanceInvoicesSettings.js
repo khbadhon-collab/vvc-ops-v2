@@ -1,13 +1,13 @@
 import { supabase } from '../lib/supabase'
 import React, { useState, useEffect } from 'react'
-import { getInvoices, markInvoicePaid, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
-import { CheckCircle, MessageCircle, Download, Plus } from 'lucide-react'
+import { getInvoices, markInvoicePaid, getExpenses, addExpense, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
+import { CheckCircle, MessageCircle, Plus, Trash2 } from 'lucide-react'
 
-const DEMO_INVOICES = []
-
+// ── INVOICES ──
 export function Invoices() {
-  const [invoices, setInvoices] = useState(DEMO_INVOICES)
+  const [invoices, setInvoices] = useState([])
   const [filter, setFilter] = useState('all')
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   useEffect(() => {
     getInvoices().then(({ data }) => { if (data?.length) setInvoices(data) })
@@ -22,24 +22,38 @@ export function Invoices() {
     setInvoices(list => list.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i))
   }
 
+  const handleDelete = async () => {
+    await supabase.from('invoices').delete().eq('id', confirmDelete.id)
+    setInvoices(list => list.filter(i => i.id !== confirmDelete.id))
+    setConfirmDelete(null)
+  }
+
   return (
     <div>
+      {confirmDelete && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:320, width:'100%' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:8 }}>Delete invoice?</div>
+            <div style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
+              <strong>{confirmDelete.client_name}</strong> · {confirmDelete.invoice_number}<br/>This cannot be undone.
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              <button className="btn btn-full" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="btn btn-full" style={{ background:'var(--danger)', color:'#fff', border:'none' }} onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
-        <div className="metric-card">
-          <div className="metric-label">Paid</div>
-          <div className="metric-value green">৳{paid.toLocaleString()}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-label">Outstanding</div>
-          <div className="metric-value amber">৳{unpaid.toLocaleString()}</div>
-        </div>
+        <div className="metric-card"><div className="metric-label">Paid</div><div className="metric-value green">৳{paid.toLocaleString()}</div></div>
+        <div className="metric-card"><div className="metric-label">Outstanding</div><div className="metric-value amber">৳{unpaid.toLocaleString()}</div></div>
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
         {['all','paid','unpaid','overdue'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '5px 12px', borderRadius: 20, border: '1px solid',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+            padding: '5px 12px', borderRadius: 20, border: '1px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
             background: filter === f ? 'var(--navy)' : '#fff',
             borderColor: filter === f ? 'var(--navy)' : 'var(--border)',
             color: filter === f ? '#fff' : 'var(--text2)',
@@ -55,9 +69,14 @@ export function Invoices() {
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{inv.client_name}</div>
                 <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>{inv.invoice_number} · {inv.case_ref}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>৳{inv.amount}</div>
-                <span className={`badge ${inv.status}`}>{inv.status}</span>
+              <div style={{ textAlign: 'right', display:'flex', alignItems:'center', gap:10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>৳{inv.amount}</div>
+                  <span className={`badge ${inv.status}`}>{inv.status}</span>
+                </div>
+                <button onClick={() => setConfirmDelete(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--danger)', padding:4 }}>
+                  <Trash2 size={15} />
+                </button>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -84,31 +103,74 @@ export function Invoices() {
 }
 
 // ── FINANCE ──
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const DEMO_EXPENSES = []
+const CATS = ['Advertising','Tools','Communication','Bank fees','Miscellaneous']
 
 export function Finance() {
   const [tab, setTab] = useState('summary')
-  const [expenses, setExpenses] = useState(DEMO_EXPENSES)
+  const [expenses, setExpenses] = useState([])
+  const [income, setIncome] = useState(0)
   const [newExp, setNewExp] = useState({ description:'', category:'Advertising', amount:'', date: new Date().toISOString().slice(0,10) })
   const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const income = 0
-  const totalExp = expenses.reduce((s,e) => s + e.amount, 0)
+  useEffect(() => {
+    // Load expenses from Supabase
+    getExpenses().then(({ data }) => { if (data?.length) setExpenses(data) })
+    // Load income from paid invoices
+    getInvoices().then(({ data }) => {
+      if (data?.length) {
+        const paidTotal = data.filter(i => i.status === 'paid').reduce((s,i) => s + i.amount, 0)
+        setIncome(paidTotal)
+      }
+    })
+  }, [])
+
+  const totalExp = expenses.reduce((s,e) => s + Number(e.amount), 0)
   const profit = income - totalExp
+  const margin = income > 0 ? Math.round((profit / income) * 100) : 0
 
   const cats = {}
-  expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + e.amount })
+  expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!newExp.description || !newExp.amount) return
-    setExpenses(list => [...list, { ...newExp, id: Date.now(), amount: Number(newExp.amount) }])
+    setSaving(true)
+    const expData = { ...newExp, amount: Number(newExp.amount) }
+    const { error } = await addExpense(expData)
+    if (!error) {
+      // Reload from DB to get real ID
+      const { data } = await getExpenses()
+      if (data) setExpenses(data)
+    }
     setNewExp({ description:'', category:'Advertising', amount:'', date: new Date().toISOString().slice(0,10) })
     setAdding(false)
+    setSaving(false)
+  }
+
+  const handleDeleteExpense = async () => {
+    await supabase.from('expenses').delete().eq('id', confirmDelete.id)
+    setExpenses(list => list.filter(e => e.id !== confirmDelete.id))
+    setConfirmDelete(null)
   }
 
   return (
     <div>
+      {confirmDelete && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:320, width:'100%' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:8 }}>Delete expense?</div>
+            <div style={{ fontSize:13, color:'var(--text2)', marginBottom:20 }}>
+              <strong>{confirmDelete.description}</strong> · ৳{confirmDelete.amount}<br/>This cannot be undone.
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              <button className="btn btn-full" onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="btn btn-full" style={{ background:'var(--danger)', color:'#fff', border:'none' }} onClick={handleDeleteExpense}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="tabs">
         {['summary','p&l','expenses'].map(t => (
           <button key={t} className={`tab-btn ${tab===t?'active':''}`} onClick={() => setTab(t)}>
@@ -123,11 +185,12 @@ export function Finance() {
             <div className="metric-card"><div className="metric-label">Income</div><div className="metric-value green">৳{income.toLocaleString()}</div></div>
             <div className="metric-card"><div className="metric-label">Expenses</div><div className="metric-value red">৳{totalExp.toLocaleString()}</div></div>
             <div className="metric-card"><div className="metric-label">Net profit</div><div className="metric-value blue">৳{profit.toLocaleString()}</div></div>
-            <div className="metric-card"><div className="metric-label">Margin</div><div className="metric-value">{Math.round(profit/income*100)}%</div></div>
+            <div className="metric-card"><div className="metric-label">Margin</div><div className="metric-value">{income > 0 ? `${margin}%` : '—'}</div></div>
           </div>
           <div className="card mb-12">
             <div className="card-header">Expenses by category</div>
             <div className="card-body">
+              {Object.entries(cats).length === 0 && <div style={{fontSize:13,color:'var(--text3)',padding:'4px 0'}}>No expenses yet</div>}
               {Object.entries(cats).map(([cat, amt]) => (
                 <div key={cat} style={{ marginBottom: 10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5, marginBottom:4 }}>
@@ -135,7 +198,7 @@ export function Finance() {
                     <span style={{ fontWeight:600 }}>৳{amt.toLocaleString()}</span>
                   </div>
                   <div style={{ height:8, background:'var(--surface2)', borderRadius:4, overflow:'hidden' }}>
-                    <div style={{ height:'100%', background:'var(--danger)', borderRadius:4, width:`${Math.round(amt/totalExp*100)}%` }} />
+                    <div style={{ height:'100%', background:'var(--danger)', borderRadius:4, width:`${totalExp > 0 ? Math.round(amt/totalExp*100) : 0}%` }} />
                   </div>
                 </div>
               ))}
@@ -147,26 +210,24 @@ export function Finance() {
       {tab === 'p&l' && (
         <div>
           <div className="card mb-12">
-            <div className="card-header">Income</div>
-            <div className="inv-line"><span style={{color:'var(--text2)'}}>Standard (15 cases)</span><span style={{color:'var(--success)'}}>৳7,500</span></div>
-            <div className="inv-line"><span style={{color:'var(--text2)'}}>Premium (11 cases)</span><span style={{color:'var(--success)'}}>৳8,800</span></div>
-            <div className="inv-line"><span style={{color:'var(--text2)'}}>Urgent (4 cases)</span><span style={{color:'var(--success)'}}>৳4,800</span></div>
-            <div className="inv-line total"><span>Gross income</span><span style={{color:'var(--success)'}}>৳{income.toLocaleString()}</span></div>
+            <div className="card-header">Income (paid invoices)</div>
+            <div className="inv-line total"><span>Total received</span><span style={{color:'var(--success)'}}>৳{income.toLocaleString()}</span></div>
           </div>
           <div className="card mb-12">
             <div className="card-header">Expenses</div>
+            {expenses.length === 0 && <div className="inv-line"><span style={{color:'var(--text3)'}}>No expenses recorded</span></div>}
             {expenses.map(e => (
               <div key={e.id} className="inv-line">
-                <span style={{color:'var(--text2)'}}>{e.description}</span>
-                <span style={{color:'var(--danger)'}}>–৳{e.amount.toLocaleString()}</span>
+                <span style={{color:'var(--text2)'}}>{e.description} <span style={{fontSize:11,color:'var(--text3)'}}>({e.category})</span></span>
+                <span style={{color:'var(--danger)'}}>–৳{Number(e.amount).toLocaleString()}</span>
               </div>
             ))}
             <div className="inv-line total"><span>Total expenses</span><span style={{color:'var(--danger)'}}>–৳{totalExp.toLocaleString()}</span></div>
           </div>
           <div className="card">
             <div className="inv-line total" style={{padding:'14px 16px'}}>
-              <span style={{fontSize:14}}>Net profit — June 2026</span>
-              <span style={{fontSize:16,color:'var(--navy)'}}>৳{profit.toLocaleString()}</span>
+              <span style={{fontSize:14}}>Net profit</span>
+              <span style={{fontSize:16,color: profit >= 0 ? 'var(--navy)' : 'var(--danger)'}}>৳{profit.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -181,7 +242,7 @@ export function Finance() {
                 <div className="form-group"><label className="form-label">Description</label><input className="form-input" placeholder="e.g. Facebook ad" value={newExp.description} onChange={e=>setNewExp(n=>({...n,description:e.target.value}))} /></div>
                 <div className="form-group"><label className="form-label">Category</label>
                   <select className="form-select" value={newExp.category} onChange={e=>setNewExp(n=>({...n,category:e.target.value}))}>
-                    {['Advertising','Tools','Communication','Bank fees','Miscellaneous'].map(c=><option key={c}>{c}</option>)}
+                    {CATS.map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-row">
@@ -190,7 +251,7 @@ export function Finance() {
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   <button className="btn btn-full" onClick={()=>setAdding(false)}>Cancel</button>
-                  <button className="btn btn-primary btn-full" onClick={handleAddExpense}>Save</button>
+                  <button className="btn btn-primary btn-full" onClick={handleAddExpense} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
                 </div>
               </div>
             </div>
@@ -200,18 +261,20 @@ export function Finance() {
             </button>
           )}
           <div className="card">
+            {expenses.length === 0 && <div style={{padding:'16px',textAlign:'center',color:'var(--text3)',fontSize:13}}>No expenses yet</div>}
             {expenses.map(e => (
-              <div key={e.id} style={{padding:'10px 16px',borderBottom:'1px solid var(--border)'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                  <div>
-                    <div style={{fontWeight:600,fontSize:13}}>{e.description}</div>
-                    <div style={{fontSize:11.5,color:'var(--text3)'}}>{e.category} · {e.date}</div>
-                  </div>
-                  <div style={{color:'var(--danger)',fontWeight:700}}>–৳{e.amount.toLocaleString()}</div>
+              <div key={e.id} style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{e.description}</div>
+                  <div style={{fontSize:11.5,color:'var(--text3)'}}>{e.category} · {e.date}</div>
                 </div>
+                <div style={{color:'var(--danger)',fontWeight:700}}>–৳{Number(e.amount).toLocaleString()}</div>
+                <button onClick={() => setConfirmDelete(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--danger)',padding:4}}>
+                  <Trash2 size={15} />
+                </button>
               </div>
             ))}
-            <div className="inv-line total"><span>Total</span><span style={{color:'var(--danger)'}}>–৳{totalExp.toLocaleString()}</span></div>
+            {expenses.length > 0 && <div className="inv-line total"><span>Total</span><span style={{color:'var(--danger)'}}>–৳{totalExp.toLocaleString()}</span></div>}
           </div>
         </div>
       )}
@@ -234,9 +297,7 @@ export function Settings() {
   const set = (k, v) => setS(prev => ({ ...prev, [k]: v }))
 
   const save = async () => {
-    // Save to Supabase
-    const { error } = await supabase.from('settings').upsert([{ id: 1, ...s, updated_at: new Date().toISOString() }])
-    // Also save to localStorage as backup
+    await supabase.from('settings').upsert([{ id: 1, ...s, updated_at: new Date().toISOString() }])
     localStorage.setItem('vvc_settings', JSON.stringify(s))
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -244,12 +305,9 @@ export function Settings() {
 
   useEffect(() => {
     const loadSettings = async () => {
-      // Try Supabase first
       const { data } = await supabase.from('settings').select('*').eq('id', 1).single()
-      if (data) {
-        setS(prev => ({ ...prev, ...data }))
-      } else {
-        // Fall back to localStorage
+      if (data) { setS(prev => ({ ...prev, ...data })) }
+      else {
         const local = localStorage.getItem('vvc_settings')
         if (local) setS(JSON.parse(local))
       }
@@ -277,7 +335,7 @@ export function Settings() {
           </div>
           <div className="form-group" style={{marginBottom:0}}>
             <label className="form-label">Gemini API key</label>
-            <input className="form-input" type="password" placeholder="AIza..." value={s.gemini_api_key} onChange={e=>set('gemini_api_key',e.target.value)} />
+            <input className="form-input" type="password" placeholder="Paste Gemini API key..." value={s.gemini_api_key} onChange={e=>set('gemini_api_key',e.target.value)} />
           </div>
         </div>
       </div>
