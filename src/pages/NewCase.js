@@ -13,6 +13,7 @@ const PAYMENT_METHODS = ['bKash Send Money', 'bKash Merchant', 'Nagad', 'Rocket'
 
 export default function NewCase() {
   const navigate = useNavigate()
+  const [paymentReceived, setPaymentReceived] = useState(false)
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +66,19 @@ export default function NewCase() {
     ? buildWhatsAppLink(form.client_phone, waInvoiceMessage(form.client_name, createdCase.case_id, totalAmount, form.payment_method))
     : '#'
 
+  const markPaymentReceived = async () => {
+    if (!createdCase) return
+    const { markInvoicePaid, getInvoices } = await import('../lib/supabase')
+    // find invoice for this case and mark paid
+    const { data: invs } = await getInvoices()
+    const inv = invs?.find(i => i.case_ref === createdCase.case_id)
+    if (inv) await markInvoicePaid(inv.id, form.payment_method)
+    // update case payment status
+    const { updateCase } = await import('../lib/supabase')
+    await updateCase(createdCase.id, { payment_status: 'received' })
+    setPaymentReceived(true)
+  }
+
   // Step 3 - Success
   if (step === 3 && createdCase) {
     return (
@@ -83,7 +97,7 @@ export default function NewCase() {
           <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Payment</span><span>{form.payment_method}</span></div>
           <div className="inv-line total"><span>Total</span><span style={{ color: 'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span></div>
         </div>
-        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <MessageCircle size={20} color="#25D366" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 13 }}>Send invoice via WhatsApp</div>
@@ -91,6 +105,17 @@ export default function NewCase() {
           </div>
           <a href={waLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
         </div>
+
+        {paymentReceived ? (
+          <div style={{ background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+            <CheckCircle size={18} color="var(--success)" />
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--success)' }}>Payment received — invoice marked paid</div>
+          </div>
+        ) : (
+          <button className="btn btn-success btn-full" style={{ marginBottom:16, padding:11 }} onClick={markPaymentReceived}>
+            <CheckCircle size={15} /> Mark payment received
+          </button>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money' }); setQty(1); setCreatedCase(null) }}>New case</button>
           <button className="btn btn-primary btn-full" onClick={() => navigate(`/cases/${createdCase.id}`)}>Open case →</button>

@@ -425,6 +425,7 @@ Please analyze these documents and generate the full verification report.`
       {/* NOTES TAB */}
       {tab === 'notes' && (
         <div>
+          {/* Notes & advice */}
           <div className="card mb-12">
             <div className="card-header">Case notes & advice</div>
             <div className="card-body">
@@ -432,7 +433,7 @@ Please analyze these documents and generate the full verification report.`
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Write your advice, observations, or notes about this case here..."
-                style={{ width:'100%', minHeight:220, padding:12, border:'1px solid var(--border)', borderRadius:8, fontSize:13, lineHeight:1.7, resize:'vertical', fontFamily:'-apple-system,sans-serif' }}
+                style={{ width:'100%', minHeight:180, padding:12, border:'1px solid var(--border)', borderRadius:8, fontSize:13, lineHeight:1.7, resize:'vertical', fontFamily:'-apple-system,sans-serif' }}
               />
               <button className="btn btn-primary btn-full" style={{marginTop:10, padding:11}} onClick={saveNotes} disabled={savingNotes}>
                 {savingNotes ? 'Saving...' : 'Save notes'}
@@ -440,21 +441,51 @@ Please analyze these documents and generate the full verification report.`
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">Send report file to client</div>
+          {/* Send report via WhatsApp */}
+          <div className="card mb-12">
+            <div className="card-header">📤 Send report to client via WhatsApp</div>
             <div className="card-body">
-              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Upload your VVC report PDF/DOCX, then open WhatsApp and manually attach it to send to the client.</div>
-              <label className="upload-zone" style={{padding:14,cursor:'pointer'}}>
+              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:12}}>
+                Step 1 — Select your VVC report file below.<br/>
+                Step 2 — Tap "Open WhatsApp". WhatsApp will open with a pre-filled message.<br/>
+                Step 3 — Manually attach the report file and hit send.
+              </div>
+              <label className="upload-zone" style={{padding:14,cursor:'pointer',marginBottom:10}}>
                 <Upload size={18} style={{margin:'0 auto 4px',display:'block'}} />
-                <p style={{fontSize:12.5}}>{reportFile ? `✅ ${reportFile.name}` : 'Tap to select report file'}</p>
-                <span style={{fontSize:11.5,color:'var(--text3)'}}>PDF · DOCX</span>
+                <p style={{fontSize:12.5}}>{reportFile ? `✅ ${reportFile.name}` : 'Tap to select report file (PDF/DOCX)'}</p>
                 <input type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={handleReportFileUpload} />
               </label>
-              {reportFile && (
-                <a href={buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict || 'See attached report'))}
-                  target="_blank" rel="noreferrer" className="btn btn-wa btn-full" style={{marginTop:10,justifyContent:'center'}}>
-                  <MessageCircle size={14} /> Open WhatsApp → attach & send
-                </a>
+              <a href={buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict || 'See attached report'))}
+                target="_blank" rel="noreferrer"
+                className={`btn btn-wa btn-full ${!c.client_phone ? 'disabled' : ''}`}
+                style={{justifyContent:'center', opacity: c.client_phone ? 1 : 0.5}}>
+                <MessageCircle size={14} /> Open WhatsApp → attach & send
+              </a>
+              {!c.client_phone && <div style={{fontSize:11.5,color:'var(--danger)',marginTop:6}}>⚠ No phone number on this case. Edit case to add phone.</div>}
+            </div>
+          </div>
+
+          {/* Client document upload area */}
+          <div className="card">
+            <div className="card-header">📁 Client documents received</div>
+            <div className="card-body">
+              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Upload documents received from client via WhatsApp for your records.</div>
+              <label className="upload-zone" style={{cursor: uploading ? 'wait' : 'pointer'}}>
+                <Upload size={18} style={{margin:'0 auto 4px',display:'block'}} />
+                <p style={{fontSize:12.5}}>{uploading ? 'Uploading...' : 'Tap to upload client documents'}</p>
+                <span style={{fontSize:11.5,color:'var(--text3)'}}>PDF · JPG · PNG</span>
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:'none'}} onChange={handleFileUpload} disabled={uploading} />
+              </label>
+              {files.length > 0 && (
+                <div style={{marginTop:10}}>
+                  {files.map((f,i) => (
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--border)',fontSize:12.5}}>
+                      <FileText size={14} color="var(--info)" />
+                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.name}</span>
+                      <CheckCircle size={13} color="var(--success)" />
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
