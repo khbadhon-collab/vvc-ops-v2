@@ -64,7 +64,7 @@ export function Invoices() {
             <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editData.amount} onChange={e=>setEditData(d=>({...d,amount:e.target.value}))} /></div>
             <div className="form-group"><label className="form-label">Payment method</label>
               <select className="form-select" value={editData.payment_method} onChange={e=>setEditData(d=>({...d,payment_method:e.target.value}))}>
-                {['bKash','Nagad','Bank transfer','Cash'].map(m=><option key={m}>{m}</option>)}
+                {['bKash Send Money','bKash Merchant','Nagad','Rocket','EBL Bank','Cash'].map(m=><option key={m}>{m}</option>)}
               </select>
             </div>
             <div className="form-group"><label className="form-label">Status</label>
@@ -147,10 +147,13 @@ export function Finance() {
   const [tab, setTab] = useState('summary')
   const [expenses, setExpenses] = useState([])
   const [income, setIncome] = useState(0)
+  const [invoices, setInvoices] = useState([])
   const [newExp, setNewExp] = useState({ description:'', category:'Advertising', amount:'', date: new Date().toISOString().slice(0,10) })
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [editExp, setEditExp] = useState(null)
+  const [editExpData, setEditExpData] = useState({})
   const [customCats, setCustomCats] = useState([])
   const [addingCat, setAddingCat] = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -162,6 +165,7 @@ export function Finance() {
     // Load income from paid invoices
     getInvoices().then(({ data }) => {
       if (data?.length) {
+        setInvoices(data)
         const paidTotal = data.filter(i => i.status === 'paid').reduce((s,i) => s + i.amount, 0)
         setIncome(paidTotal)
       }
@@ -196,6 +200,14 @@ export function Finance() {
     setConfirmDelete(null)
   }
 
+  const openEditExp = (e) => { setEditExp(e); setEditExpData({ description: e.description, category: e.category, amount: e.amount, date: e.date }) }
+
+  const saveEditExp = async () => {
+    await supabase.from('expenses').update({ ...editExpData, amount: Number(editExpData.amount) }).eq('id', editExp.id)
+    setExpenses(list => list.map(e => e.id === editExp.id ? { ...e, ...editExpData, amount: Number(editExpData.amount) } : e))
+    setEditExp(null)
+  }
+
   return (
     <div>
       {confirmDelete && (
@@ -214,7 +226,27 @@ export function Finance() {
       )}
 
       <div className="tabs">
-        {['summary','p&l','expenses'].map(t => (
+        {editExp && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:340, width:'100%' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Edit Expense</div>
+            <div className="form-group"><label className="form-label">Description</label><input className="form-input" value={editExpData.description} onChange={e=>setEditExpData(d=>({...d,description:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Category</label>
+              <select className="form-select" value={editExpData.category} onChange={e=>setEditExpData(d=>({...d,category:e.target.value}))}>
+                {[...DEFAULT_CATS,...customCats].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editExpData.amount} onChange={e=>setEditExpData(d=>({...d,amount:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Date</label><input className="form-input" type="date" value={editExpData.date} onChange={e=>setEditExpData(d=>({...d,date:e.target.value}))} /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
+              <button className="btn btn-full" onClick={() => setEditExp(null)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={saveEditExp}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {['summary','p&l','expenses'].map(t => (
           <button key={t} className={`tab-btn ${tab===t?'active':''}`} onClick={() => setTab(t)}>
             {t === 'p&l' ? 'P&L' : t.charAt(0).toUpperCase()+t.slice(1)}
           </button>
@@ -244,6 +276,22 @@ export function Finance() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+          <div className="card mb-12">
+            <div className="card-header">Income by payment method</div>
+            <div className="card-body">
+              {['bKash Send Money','bKash Merchant','Nagad','Rocket','EBL Bank','Cash'].map(method => {
+                const amt = invoices.filter(i => i.status === 'paid' && i.payment_method === method).reduce((s,i) => s + i.amount, 0)
+                if (amt === 0) return null
+                return (
+                  <div key={method} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
+                    <span style={{color:'var(--text2)'}}>{method}</span>
+                    <span style={{fontWeight:700, color:'var(--success)'}}>৳{amt.toLocaleString()}</span>
+                  </div>
+                )
+              })}
+              {income === 0 && <div style={{fontSize:13,color:'var(--text3)'}}>No paid invoices yet</div>}
             </div>
           </div>
         </div>
@@ -322,6 +370,9 @@ export function Finance() {
                   <div style={{fontSize:11.5,color:'var(--text3)'}}>{e.category} · {e.date}</div>
                 </div>
                 <div style={{color:'var(--danger)',fontWeight:700}}>–৳{Number(e.amount).toLocaleString()}</div>
+                <button onClick={() => openEditExp(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--navy)',padding:4}}>
+                  <Edit2 size={15} />
+                </button>
                 <button onClick={() => setConfirmDelete(e)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--danger)',padding:4}}>
                   <Trash2 size={15} />
                 </button>

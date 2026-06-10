@@ -9,7 +9,7 @@ const TIERS = [
   { key: 'basic', label: 'Basic Verification', price: 1000, time: '48 hrs' },
   { key: 'urgent', label: 'Urgent Verification', price: 3000, time: '24 hrs' },
 ]
-const PAYMENT_METHODS = ['bKash', 'Nagad', 'Both (client chooses)']
+const PAYMENT_METHODS = ['bKash Send Money', 'bKash Merchant', 'Nagad', 'Rocket', 'EBL Bank', 'Cash']
 
 export default function NewCase() {
   const navigate = useNavigate()
@@ -21,7 +21,7 @@ export default function NewCase() {
     client_name: '', client_phone: '', client_email: '',
     country: '', doc_type: '', notes: '',
     tier: 'basic', ai_engine: 'gemini',
-    payment_method: 'bKash'
+    payment_method: 'bKash Send Money'
   })
   const [qty, setQty] = useState(1)
 
@@ -92,7 +92,7 @@ export default function NewCase() {
           <a href={waLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash' }); setQty(1); setCreatedCase(null) }}>New case</button>
+          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money' }); setQty(1); setCreatedCase(null) }}>New case</button>
           <button className="btn btn-primary btn-full" onClick={() => navigate(`/cases/${createdCase.id}`)}>Open case →</button>
         </div>
       </div>
