@@ -136,20 +136,18 @@ export default function CaseDetail() {
 
   const runAnalysis = async (uploadedFiles) => {
     let settings = JSON.parse(localStorage.getItem('vvc_settings') || '{}')
-    let geminiKey = settings.gemini_api_key || ''
-    if (!geminiKey) {
-      // Fall back to Supabase
+    let claudeKey = settings.claude_api_key || ''
+    if (!claudeKey) {
       try {
-        const { data } = await supabase.from('settings').select('gemini_api_key').eq('id', 1).single()
-        if (data?.gemini_api_key) {
-          geminiKey = data.gemini_api_key
-          // Cache to localStorage for next time
-          localStorage.setItem('vvc_settings', JSON.stringify({ ...settings, gemini_api_key: geminiKey }))
+        const { data } = await supabase.from('settings').select('claude_api_key').eq('id', 1).single()
+        if (data?.claude_api_key) {
+          claudeKey = data.claude_api_key
+          localStorage.setItem('vvc_settings', JSON.stringify({ ...settings, claude_api_key: claudeKey }))
         }
       } catch (e) {}
     }
-    if (!geminiKey) {
-      showError('Gemini API key not set. Go to Settings and add your Gemini API key.')
+    if (!claudeKey) {
+      showError('Claude API key not set. Go to Settings and add your Claude API key.')
       return
     }
     setAnalyzing(true)
@@ -170,25 +168,28 @@ Date: ${new Date().toLocaleDateString('en-GB')}
 
 Please analyze these documents and generate the full verification report.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: userPrompt }] }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': claudeKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      })
       const data = await response.json()
-      console.log('Gemini response:', JSON.stringify(data))
+      console.log('Claude response:', JSON.stringify(data))
       if (data?.error) {
-        showError(`Gemini error: ${data.error.message}`)
+        showError(`Claude error: ${data.error.message}`)
         setAnalyzing(false)
         return
       }
-      const reportContent = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Analysis failed. Please try again.'
+      const reportContent = data?.content?.[0]?.text || 'Analysis failed. Please try again.'
       setReportText(reportContent)
       const verdict = reportContent.includes('FRAUDULENT') ? 'CONFIRMED FRAUDULENT'
         : reportContent.includes('SUSPICIOUS') ? 'SUSPICIOUS'
