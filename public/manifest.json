@@ -1,0 +1,11 @@
+{
+  "short_name": "VVC Ops",
+  "name": "VVC Ops — Document Intelligence Platform",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0F4C81",
+  "background_color": "#F8FAFC",
+  "icons": [
+    {"src": "favicon.ico", "sizes": "64x64", "type": "image/x-icon"}
+  ]
+}
