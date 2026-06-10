@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createCase, createInvoice, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
 import { Upload, X, MessageCircle, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 const COUNTRIES = ['Andorra','Albania','Australia','Bosnia','Bulgaria','Croatia','Cyprus','Czech Republic','Denmark','Fiji','Georgia','Germany','Greece','Hungary','Italy','Jordan','Malta','Moldova','Montenegro','Morocco','Netherlands','New Zealand','North Macedonia','Norway','Poland','Portugal','Romania','Serbia','Slovenia','Spain','Sweden','Switzerland','UAE','UK','USA']
 const DOC_TYPES = ['Employment visa','Work permit','Employment contract','Offer letter','Visa + permit bundle','Residence permit','Business visa','Student visa','Other']
@@ -10,10 +11,16 @@ const TIERS = [
   { key: 'urgent', label: 'Urgent Verification', price: 3000, time: '24 hrs' },
 ]
 const PAYMENT_METHODS = ['bKash Send Money', 'bKash Merchant', 'Nagad', 'Rocket', 'EBL Bank', 'Cash']
+const LEAD_SOURCES = ['Facebook Ads','WhatsApp','Phone Call','Facebook Organic','Referral','Other']
 
 export default function NewCase() {
   const navigate = useNavigate()
   const [paymentReceived, setPaymentReceived] = useState(false)
+  const [staffList, setStaffList] = useState([])
+
+  useEffect(() => {
+    supabase.from('staff').select('id,name,role').order('name').then(({ data }) => { if (data) setStaffList(data) })
+  }, [])
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -22,7 +29,9 @@ export default function NewCase() {
     client_name: '', client_phone: '', client_email: '',
     country: '', doc_type: '', notes: '',
     tier: 'basic', ai_engine: 'gemini',
-    payment_method: 'bKash Send Money'
+    payment_method: 'bKash Send Money',
+    lead_source: 'WhatsApp',
+    assigned_to: ''
   })
   const [qty, setQty] = useState(1)
 
@@ -53,6 +62,8 @@ export default function NewCase() {
         amount: totalAmount,
         tier: form.tier,
         payment_method: form.payment_method,
+        lead_source: form.lead_source,
+        assigned_to: form.assigned_to,
       })
       setCreatedCase(newCase)
       setStep(3)
@@ -95,6 +106,8 @@ export default function NewCase() {
           <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Service</span><span>{tier.label} · {tier.time}</span></div>
           <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Persons</span><span>{qty} person{qty > 1 ? 's' : ''}</span></div>
           <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Payment</span><span>{form.payment_method}</span></div>
+          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Lead source</span><span>{form.lead_source}</span></div>
+          {form.assigned_to && <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Handled by</span><span>{staffList.find(s=>s.id===form.assigned_to)?.name||'—'}</span></div>}
           <div className="inv-line total"><span>Total</span><span style={{ color: 'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span></div>
         </div>
         <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -117,7 +130,7 @@ export default function NewCase() {
           </button>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money' }); setQty(1); setCreatedCase(null) }}>New case</button>
+          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money', lead_source:'WhatsApp', assigned_to:'' }); setQty(1); setCreatedCase(null) }}>New case</button>
           <button className="btn btn-primary btn-full" onClick={() => navigate(`/cases/${createdCase.id}`)}>Open case →</button>
         </div>
       </div>
