@@ -12,6 +12,8 @@ import CaseDetail from './pages/CaseDetail'
 import Invoices from './pages/Invoices'
 import Finance from './pages/Finance'
 import Settings from './pages/Settings'
+import Intelligence from './pages/Intelligence'
+import Staff from './pages/Staff'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -50,6 +52,8 @@ export default function App() {
             <Route path="invoices" element={<Invoices />} />
             <Route path="finance" element={<Finance />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="intelligence" element={<Intelligence />} />
+            <Route path="staff" element={<Staff />} />
           </Route>
         </Routes>
       </BrowserRouter>

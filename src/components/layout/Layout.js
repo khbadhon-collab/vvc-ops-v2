@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,
-  ShieldCheck, Bell
+  ShieldCheck, Bell, Globe, Users
 } from 'lucide-react'
 
 const navItems = [
@@ -13,14 +13,16 @@ const navItems = [
   { label: 'New case', icon: FilePlus, path: '/cases/new' },
   { label: 'Invoices', icon: Receipt, path: '/invoices' },
   { label: 'Finance', icon: BarChart2, path: '/finance' },
+  { label: 'Intelligence', icon: Globe, path: '/intelligence' },
+  { label: 'Staff', icon: Users, path: '/staff' },
 ]
 
 const bottomNavItems = [
   { label: 'Home', icon: LayoutDashboard, path: '/' },
   { label: 'Cases', icon: FolderOpen, path: '/cases' },
   { label: 'New', icon: FilePlus, path: '/cases/new' },
-  { label: 'Finance', icon: BarChart2, path: '/finance' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
+  { label: 'Intel', icon: Globe, path: '/intelligence' },
+  { label: 'Staff', icon: Users, path: '/staff' },
 ]
 
 export default function Layout() {
@@ -49,6 +51,8 @@ export default function Layout() {
     if (p.includes('/invoices')) return { title: 'Invoices', sub: 'Billing & payments' }
     if (p.includes('/finance')) return { title: 'Finance', sub: 'P&L, income & expenses' }
     if (p.includes('/settings')) return { title: 'Settings', sub: 'Configure VVC Ops' }
+    if (p.includes('/intelligence')) return { title: 'Intelligence', sub: 'Fraud analytics & country reports' }
+    if (p.includes('/staff')) return { title: 'Staff', sub: 'Team management & targets' }
     return { title: 'VVC Ops', sub: '' }
   }
 
@@ -84,6 +88,14 @@ export default function Layout() {
             {badge && <span className="nav-badge">{badge}</span>}
           </button>
         ))}
+
+        <div className="sidebar-section">Analytics</div>
+        <button className={`nav-link ${isActive('/intelligence') ? 'active' : ''}`} onClick={() => go('/intelligence')}>
+          <Globe size={16} /> Intelligence
+        </button>
+        <button className={`nav-link ${isActive('/staff') ? 'active' : ''}`} onClick={() => go('/staff')}>
+          <Users size={16} /> Staff
+        </button>
 
         <div className="sidebar-section">System</div>
         <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => go('/settings')}>
