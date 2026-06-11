@@ -38,6 +38,21 @@ export function Invoices() {
     setEditInv(null)
   }
 
+  const [addingInv, setAddingInv] = useState(false)
+  const [newInv, setNewInv] = useState({ client_name:'', client_phone:'', case_ref:'', amount:'', payment_method:'bKash Send Money', status:'unpaid' })
+  const [savingInv, setSavingInv] = useState(false)
+
+  const saveNewInv = async () => {
+    if (!newInv.client_name || !newInv.amount) return
+    setSavingInv(true)
+    const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Math.floor(1000+Math.random()*9000))
+    await supabase.from('invoices').insert([{ ...newInv, amount: Number(newInv.amount), invoice_number: invNum, created_at: new Date().toISOString() }])
+    getInvoices().then(({ data }) => { if (data?.length) setInvoices(data) })
+    setNewInv({ client_name:'', client_phone:'', case_ref:'', amount:'', payment_method:'bKash Send Money', status:'unpaid' })
+    setAddingInv(false)
+    setSavingInv(false)
+  }
+
   return (
     <div>
       {confirmDelete && (
@@ -96,7 +111,42 @@ export function Invoices() {
         ))}
       </div>
 
+      {addingInv ? (
+        <div className="card mb-12">
+          <div className="card-header">Add invoice manually</div>
+          <div className="card-body">
+            <div className="form-group"><label className="form-label">Client name</label><input className="form-input" value={newInv.client_name} onChange={e=>setNewInv(n=>({...n,client_name:e.target.value}))} placeholder="Client name"/></div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={newInv.client_phone} onChange={e=>setNewInv(n=>({...n,client_phone:e.target.value}))} placeholder="+880..."/></div>
+              <div className="form-group"><label className="form-label">Case ref</label><input className="form-input" value={newInv.case_ref} onChange={e=>setNewInv(n=>({...n,case_ref:e.target.value}))} placeholder="VVC-..."/></div>
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={newInv.amount} onChange={e=>setNewInv(n=>({...n,amount:e.target.value}))}/></div>
+              <div className="form-group"><label className="form-label">Payment method</label>
+                <select className="form-select" value={newInv.payment_method} onChange={e=>setNewInv(n=>({...n,payment_method:e.target.value}))}>
+                  {['bKash Send Money','bKash Merchant','Nagad','Rocket','EBL Bank','Cash'].map(m=><option key={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="form-group"><label className="form-label">Status</label>
+              <select className="form-select" value={newInv.status} onChange={e=>setNewInv(n=>({...n,status:e.target.value}))}>
+                {['unpaid','paid','overdue'].map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <button className="btn btn-full" onClick={()=>setAddingInv(false)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={saveNewInv} disabled={savingInv}>{savingInv?'Saving...':'Save invoice'}</button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-primary btn-full mb-12" style={{padding:11}} onClick={()=>setAddingInv(true)}>
+          <Plus size={15}/> Add invoice manually
+        </button>
+      )}
+
       <div className="card">
+        {filtered.length === 0 && <div style={{padding:24,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet. Create a case to auto-generate, or add manually above.</div>}
         {filtered.map(inv => (
           <div key={inv.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -388,7 +438,10 @@ export function Finance() {
 
 // ── SETTINGS ──
 const SETTINGS_INIT = {
-  claude_api_key: '', gemini_api_key: '', wa_number: '',
+  claude_api_key: '', gemini_api_key: '',
+  wa_number_1: '', wa_name_1: 'Main Business',
+  wa_number_2: '', wa_name_2: 'Sales',
+  wa_number_3: '', wa_name_3: 'Support',
   bkash_number: '', nagad_number: '',
   vvc_email: 'vvcbd2026@gmail.com', auto_case_id: true,
   bengali_messages: true, friday_closed: true,
@@ -445,12 +498,23 @@ export function Settings() {
       </div>
 
       <div className="card mb-16">
-        <div className="card-header">WhatsApp &amp; payments</div>
+        <div className="card-header">WhatsApp Business accounts (up to 3)</div>
         <div style={{ padding:'12px 16px' }}>
-          <div className="form-group">
-            <label className="form-label">WhatsApp Business number</label>
-            <input className="form-input" placeholder="+880 1XXXXXXXXX" value={s.wa_number} onChange={e=>set('wa_number',e.target.value)} type="tel" />
-          </div>
+          {[1,2,3].map(n => (
+            <div key={n} style={{marginBottom:12,padding:'12px',background:'var(--surface2)',borderRadius:8}}>
+              <div style={{fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:8}}>Account {n}</div>
+              <div className="form-row">
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Label / Name</label>
+                  <input className="form-input" placeholder={`e.g. Main Business`} value={s[`wa_name_${n}`]||''} onChange={e=>set(`wa_name_${n}`,e.target.value)} />
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">WhatsApp number</label>
+                  <input className="form-input" placeholder="+880 1XXXXXXXXX" value={s[`wa_number_${n}`]||''} onChange={e=>set(`wa_number_${n}`,e.target.value)} type="tel" />
+                </div>
+              </div>
+            </div>
+          ))}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">bKash number</label>

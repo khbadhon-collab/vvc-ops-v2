@@ -37,14 +37,16 @@ function ProtectedRoute({ children, page }) {
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState('admin')
+  const [customPages, setCustomPages] = useState([])
   const [loading, setLoading] = useState(true)
 
   const loadRole = async (u) => {
-    if (!u) { setRole('admin'); return }
+    if (!u) { setRole('admin'); setCustomPages([]); return }
     try {
-      const { data } = await supabase.from('user_roles').select('role').eq('user_id', u.id).single()
+      const { data } = await supabase.from('user_roles').select('role,custom_pages').eq('user_id', u.id).single()
       setRole(data?.role || 'admin')
-    } catch { setRole('admin') }
+      setCustomPages(data?.custom_pages || [])
+    } catch { setRole('admin'); setCustomPages([]) }
   }
 
   useEffect(() => {
@@ -62,7 +64,7 @@ function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, customPages, loading }}>
       {children}
     </AuthContext.Provider>
   )

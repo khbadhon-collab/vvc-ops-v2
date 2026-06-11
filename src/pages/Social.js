@@ -89,12 +89,17 @@ export default function Social() {
       )}
 
       {/* Stats */}
-      <div className="metrics-grid">
-        <div className="metric-card"><div className="metric-label">Today</div><div className="metric-value blue">{todayPosts.length}</div><div className="metric-sub">posts scheduled</div></div>
-        <div className="metric-card"><div className="metric-label">Scheduled</div><div className="metric-value amber">{scheduled.length}</div></div>
-        <div className="metric-card"><div className="metric-label">Posted</div><div className="metric-value green">{posted.length}</div></div>
-        <div className="metric-card"><div className="metric-label">Skipped</div><div className="metric-value red">{skipped.length}</div></div>
-      </div>
+      {(() => {
+        const postedToday = posts.filter(p => p.status==='Posted' && p.scheduled_date?.slice(0,10)===today)
+        return (
+          <div className="metrics-grid">
+            <div className="metric-card"><div className="metric-label">Scheduled today</div><div className="metric-value blue">{todayPosts.length}</div></div>
+            <div className="metric-card"><div className="metric-label">Posted today</div><div className="metric-value green">{postedToday.length}</div></div>
+            <div className="metric-card"><div className="metric-label">Total posted</div><div className="metric-value">{posted.length}</div></div>
+            <div className="metric-card"><div className="metric-label">Skipped</div><div className="metric-value red">{skipped.length}</div></div>
+          </div>
+        )
+      })()}
 
       {/* Facebook Page quick link */}
       <div style={{background:'#E7F3FF',border:'1px solid #B3D4FF',borderRadius:8,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>

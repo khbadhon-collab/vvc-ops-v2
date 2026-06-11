@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth, ROLES } from '../lib/auth'
+
+const ALL_PAGES = [
+  { key:'cases', label:'Cases' },
+  { key:'cases/new', label:'New Case' },
+  { key:'invoices', label:'Invoices' },
+  { key:'finance', label:'Finance' },
+  { key:'intelligence', label:'Intelligence' },
+  { key:'staff', label:'Staff' },
+  { key:'comms', label:'Comms Log' },
+  { key:'marketing', label:'Marketing' },
+  { key:'social', label:'Social Media' },
+  { key:'templates', label:'WA Templates' },
+  { key:'settings', label:'Settings' },
+  { key:'access', label:'Staff Access' },
+]
 import { Plus, Edit2, Trash2, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 
 export default function AccessControl() {
@@ -40,16 +55,22 @@ export default function AccessControl() {
     setSaving(false)
   }
 
+  const [customPages, setCustomPages] = useState([])
+
+  const togglePage = (key) => {
+    setCustomPages(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+  }
+
   const updateRole = async () => {
     if (!editUser) return
     setSaving(true)
-    await supabase.from('user_roles').update({ role: form.role, name: form.name }).eq('id', editUser.id)
+    await supabase.from('user_roles').update({ role: form.role, name: form.name, custom_pages: customPages.length > 0 ? customPages : null }).eq('id', editUser.id)
     await loadUsers()
     setEditUser(null)
     setSaving(false)
   }
 
-  const openEdit = (u) => { setEditUser(u); setForm({ email:u.email, password:'', role:u.role, name:u.name||'' }); setAdding(true) }
+  const openEdit = (u) => { setEditUser(u); setForm({ email:u.email, password:'', role:u.role, name:u.name||'' }); setCustomPages(u.custom_pages||[]); setAdding(true) }
 
   const deleteUser = async () => {
     await supabase.from('user_roles').delete().eq('id', confirmDelete.id)
