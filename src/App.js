@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { AuthContext, useAuth, hasAccess } from './lib/auth'
 import './styles/index.css'
 
 import Layout from './components/layout/Layout'
@@ -20,26 +21,30 @@ import Social from './pages/Social'
 import Templates from './pages/Templates'
 import AccessControl from './pages/AccessControl'
 
-export { AuthContext, useAuth, ROLES, hasAccess } from './lib/auth'
-import { AuthContext } from './lib/auth'
-
 function ProtectedRoute({ children, page }) {
   const { user, role, loading } = useAuth()
-  if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'#0F4C81',fontSize:'14px'}}>Loading VVC Ops...</div>
+  if (loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12}}>
+      <div style={{color:'#0F4C81',fontWeight:700,fontSize:16}}>VVC Ops</div>
+      <div style={{color:'#666',fontSize:13}}>Loading...</div>
+    </div>
+  )
   if (!user) return <Navigate to="/login" replace />
   if (page && !hasAccess(role, page)) return <Navigate to="/" replace />
   return children
 }
 
-export default function App() {
+function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState('admin')
   const [loading, setLoading] = useState(true)
 
   const loadRole = async (u) => {
     if (!u) { setRole('admin'); return }
-    const { data } = await supabase.from('user_roles').select('role').eq('user_id', u.id).single()
-    setRole(data?.role || 'admin')
+    try {
+      const { data } = await supabase.from('user_roles').select('role').eq('user_id', u.id).single()
+      setRole(data?.role || 'admin')
+    } catch { setRole('admin') }
   }
 
   useEffect(() => {
@@ -58,6 +63,14 @@ export default function App() {
 
   return (
     <AuthContext.Provider value={{ user, role, loading }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -75,9 +88,11 @@ export default function App() {
             <Route path="marketing" element={<Marketing />} />
             <Route path="social" element={<Social />} />
             <Route path="templates" element={<Templates />} />
+            <Route path="access" element={<ProtectedRoute page="settings"><AccessControl /></ProtectedRoute>} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </AuthContext.Provider>
+    </AuthProvider>
   )
 }
