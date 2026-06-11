@@ -6,7 +6,7 @@ import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,
   ShieldCheck, Bell, Globe, Users,
-  MessageCircle, TrendingUp, Share2, Zap
+  MessageCircle, TrendingUp, Share2, Zap, ChevronUp
 } from 'lucide-react'
 
 const navItems = [
@@ -37,7 +37,21 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const [showScroll, setShowScroll] = useState(false)
   const { user, role: currentRole } = useAuth()
+
+  useEffect(() => {
+    const el = document.querySelector('.page')
+    if (!el) return
+    const onScroll = () => setShowScroll(el.scrollTop > 200)
+    el.addEventListener('scroll', onScroll)
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const scrollTop = () => {
+    const el = document.querySelector('.page')
+    if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+  }
   const roleInfo = ROLES[currentRole] || ROLES.admin
   const canSee = (path) => hasAccess(currentRole, path)
 
@@ -173,6 +187,16 @@ export default function Layout() {
           ))}
         </div>
       </nav>
+    {showScroll && (
+        <button onClick={scrollTop} style={{
+          position:'fixed', bottom:80, right:16, width:40, height:40,
+          borderRadius:'50%', background:'var(--navy)', color:'#fff',
+          border:'none', cursor:'pointer', display:'flex', alignItems:'center',
+          justifyContent:'center', boxShadow:'0 2px 8px rgba(0,0,0,.25)', zIndex:100
+        }}>
+          <ChevronUp size={20}/>
+        </button>
+      )}
     </div>
   )
 }

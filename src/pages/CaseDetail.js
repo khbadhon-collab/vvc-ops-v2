@@ -89,7 +89,7 @@ export default function CaseDetail() {
       if (data.report_text) setReportText(data.report_text)
       if (data.report_text) setApproved(true)
       if (data.notes) setNotes(data.notes)
-      setEditData({ client_name: data.client_name, client_phone: data.client_phone || '', country: data.country, doc_type: data.doc_type, amount: data.amount })
+      setEditData({ client_name: data.client_name, client_phone: data.client_phone || '', client_email: data.client_email || '', country: data.country, doc_type: data.doc_type, amount: data.amount })
     }
   }
 
@@ -115,7 +115,7 @@ export default function CaseDetail() {
       await updateCase(id, { documents: allFiles.map(f => ({ name: f.name, url: f.url, path: f.path })) })
       showSuccess('Documents uploaded successfully')
       // Auto-trigger analysis
-      if (allFiles.length > 0) runAnalysis(allFiles)
+      // files uploaded — staff will generate report manually
     } catch (err) {
       showError('Upload failed. Please try again.')
     }
@@ -286,6 +286,7 @@ Please analyze these documents and generate the full verification report.`
             <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Edit Case</div>
             <div className="form-group"><label className="form-label">Client name</label><input className="form-input" value={editData.client_name||''} onChange={e=>setEditData(d=>({...d,client_name:e.target.value}))} /></div>
             <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={editData.client_phone||''} onChange={e=>setEditData(d=>({...d,client_phone:e.target.value}))} /></div>
+            <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" placeholder="client@email.com" value={editData.client_email||''} onChange={e=>setEditData(d=>({...d,client_email:e.target.value}))} /></div>
             <div className="form-group"><label className="form-label">Country</label><input className="form-input" value={editData.country||''} onChange={e=>setEditData(d=>({...d,country:e.target.value}))} /></div>
             <div className="form-group"><label className="form-label">Document type</label><input className="form-input" value={editData.doc_type||''} onChange={e=>setEditData(d=>({...d,doc_type:e.target.value}))} /></div>
             <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editData.amount||''} onChange={e=>setEditData(d=>({...d,amount:e.target.value}))} /></div>
@@ -311,9 +312,9 @@ Please analyze these documents and generate the full verification report.`
       {/* ANALYSIS TAB */}
       {tab === 'analysis' && (
         <div>
-          <div style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, color: 'var(--purple)', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, color: 'var(--text2)', display: 'flex', gap: 8, alignItems: 'center' }}>
             <Info size={14} />
-            <span>Upload documents below — Gemini AI will analyse automatically and generate the report.</span>
+            <span>Upload client documents below. Download the completed report and upload it in the Report tab.</span>
           </div>
 
           {/* Upload */}
@@ -360,19 +361,7 @@ Please analyze these documents and generate the full verification report.`
             </div>
           </div>
 
-          {/* Manual run analysis button */}
-          {files.length > 0 && (
-            <button className="btn btn-primary btn-full" style={{ padding: 12 }} onClick={() => runAnalysis()} disabled={analyzing}>
-              {analyzing ? '⏳ Gemini is analysing...' : '▶ Run Gemini analysis'}
-            </button>
-          )}
 
-          {analyzing && (
-            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text2)', fontSize: 13 }}>
-              <div style={{ marginBottom: 8 }}>🔍 Analysing documents with Gemini AI...</div>
-              <div style={{ fontSize: 12, color: 'var(--text3)' }}>This takes 15–30 seconds. Report will appear in the Report tab.</div>
-            </div>
-          )}
         </div>
       )}
 
@@ -513,6 +502,40 @@ Please analyze these documents and generate the full verification report.`
                   <span>Opens WhatsApp · attach PDF · send</span>
                 </div>
                 <a href={waReportLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
+              </div>
+            </div>
+          </div>
+
+          {/* Email actions */}
+          <div className="card mb-12">
+            <div className="card-header" style={{color:'var(--info)'}}>
+              ✉️ Email actions
+            </div>
+            <div style={{padding:'4px 0'}}>
+              <div className="wa-action" style={{margin:'10px 14px'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:'#EA4335',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{color:'#fff',fontSize:13,fontWeight:700}}>G</span>
+                </div>
+                <div className="wa-action-text">
+                  <strong>Send report via email</strong>
+                  <span>Opens Gmail · attach report · send</span>
+                </div>
+                <a href={`mailto:${c.client_email||''}?subject=VVC Report — ${c.case_id}&body=Dear ${c.client_name},%0A%0APlease find your document verification report attached.%0A%0ACase ID: ${c.case_id}%0AVerdict: ${c.verdict||'See attached report'}%0A%0AThank you%0AVVC Global — Visa Verification Center`}
+                  className="btn btn-sm" style={{background:'#EA4335',color:'#fff',border:'none',flexShrink:0}}>Send</a>
+              </div>
+              <div className="wa-action" style={{margin:'0 14px 10px'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:'#EA4335',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{color:'#fff',fontSize:13,fontWeight:700}}>G</span>
+                </div>
+                <div className="wa-action-text">
+                  <strong>Send invoice via email</strong>
+                  <span>Opens Gmail with invoice details</span>
+                </div>
+                <a href={`mailto:${c.client_email||''}?subject=VVC Invoice — ${c.case_id}&body=Dear ${c.client_name},%0A%0AYour invoice for document verification service:%0A%0ACase ID: ${c.case_id}%0AAmount: ৳${c.amount}%0AService: ${c.doc_type} — ${c.country}%0A%0APlease make payment via bKash/Nagad.%0A%0AThank you%0AVVC Global`}
+                  className="btn btn-sm" style={{background:'#EA4335',color:'#fff',border:'none',flexShrink:0}}>Send</a>
+              </div>
+              <div style={{padding:'0 14px 10px',fontSize:11.5,color:'var(--text3)'}}>
+                Sending from: vvcbd2026@gmail.com · Add client email in Edit Case if missing.
               </div>
             </div>
           </div>
