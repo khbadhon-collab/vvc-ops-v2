@@ -25,5 +25,8 @@
     "development": [
       "last 1 chrome version"
     ]
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
