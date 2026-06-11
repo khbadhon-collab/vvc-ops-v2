@@ -4,7 +4,8 @@ import { supabase } from '../../lib/supabase'
 import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,
-  ShieldCheck, Bell, Globe, Users
+  ShieldCheck, Bell, Globe, Users,
+  MessageCircle, TrendingUp, Share2
 } from 'lucide-react'
 
 const navItems = [
@@ -15,6 +16,9 @@ const navItems = [
   { label: 'Finance', icon: BarChart2, path: '/finance' },
   { label: 'Intelligence', icon: Globe, path: '/intelligence' },
   { label: 'Staff', icon: Users, path: '/staff' },
+  { label: 'Comms', icon: MessageCircle, path: '/comms' },
+  { label: 'Marketing', icon: TrendingUp, path: '/marketing' },
+  { label: 'Social', icon: Share2, path: '/social' },
 ]
 
 const bottomNavItems = [
@@ -23,6 +27,9 @@ const bottomNavItems = [
   { label: 'New', icon: FilePlus, path: '/cases/new' },
   { label: 'Intel', icon: Globe, path: '/intelligence' },
   { label: 'Staff', icon: Users, path: '/staff' },
+  { label: 'Comms', icon: MessageCircle, path: '/comms' },
+  { label: 'Marketing', icon: TrendingUp, path: '/marketing' },
+  { label: 'Social', icon: Share2, path: '/social' },
 ]
 
 export default function Layout() {
@@ -53,6 +60,9 @@ export default function Layout() {
     if (p.includes('/settings')) return { title: 'Settings', sub: 'Configure VVC Ops' }
     if (p.includes('/intelligence')) return { title: 'Intelligence', sub: 'Fraud analytics & country reports' }
     if (p.includes('/staff')) return { title: 'Staff', sub: 'Team management & targets' }
+    if (p.includes('/comms')) return { title: 'Comms Log', sub: 'All client communications' }
+    if (p.includes('/marketing')) return { title: 'Marketing', sub: 'Campaign performance & ROI' }
+    if (p.includes('/social')) return { title: 'Social Media', sub: 'Post scheduler & tracker' }
     return { title: 'VVC Ops', sub: '' }
   }
 
@@ -95,6 +105,17 @@ export default function Layout() {
         </button>
         <button className={`nav-link ${isActive('/staff') ? 'active' : ''}`} onClick={() => go('/staff')}>
           <Users size={16} /> Staff
+        </button>
+
+        <div className="sidebar-section">Operations</div>
+        <button className={`nav-link ${isActive('/comms') ? 'active' : ''}`} onClick={() => go('/comms')}>
+          <MessageCircle size={16} /> Comms log
+        </button>
+        <button className={`nav-link ${isActive('/marketing') ? 'active' : ''}`} onClick={() => go('/marketing')}>
+          <TrendingUp size={16} /> Marketing
+        </button>
+        <button className={`nav-link ${isActive('/social') ? 'active' : ''}`} onClick={() => go('/social')}>
+          <Share2 size={16} /> Social media
         </button>
 
         <div className="sidebar-section">System</div>

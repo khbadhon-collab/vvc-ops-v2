@@ -14,6 +14,9 @@ import Finance from './pages/Finance'
 import Settings from './pages/Settings'
 import Intelligence from './pages/Intelligence'
 import Staff from './pages/Staff'
+import Comms from './pages/Comms'
+import Marketing from './pages/Marketing'
+import Social from './pages/Social'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -54,6 +57,9 @@ export default function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="intelligence" element={<Intelligence />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="comms" element={<Comms />} />
+            <Route path="marketing" element={<Marketing />} />
+            <Route path="social" element={<Social />} />
           </Route>
         </Routes>
       </BrowserRouter>
