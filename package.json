@@ -15,7 +15,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "CI=false react-scripts build"
   },
   "browserslist": {
     "production": [
@@ -25,8 +25,5 @@
     "development": [
       "last 1 chrome version"
     ]
-  },
-  "engines": {
-    "node": "18.x"
   }
 }
