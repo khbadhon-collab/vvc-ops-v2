@@ -1,68 +1,167 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCases, getInvoices, getExpenses } from '../lib/supabase'
-import { TrendingUp, Clock, FileCheck, AlertTriangle, Plus, ChevronRight } from 'lucide-react'
-import { format } from 'date-fns'
-
-const DEMO_CASES = []
+import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe } from 'lucide-react'
 
 const statusLabel = { pending: 'Awaiting docs', progress: 'In review', suspicious: 'Suspicious', manipulated: 'Manipulated', done: 'Delivered', new: 'New' }
+const initials = (n) => n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()
+const avatarColor = (n) => { const c=['','g','a','r','p']; return c[n.charCodeAt(0)%c.length] }
 
-const initials = (name) => name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()
-const avatarColor = (name) => {
-  const colors = ['', 'g', 'a', 'r', 'p']
-  return colors[name.charCodeAt(0) % colors.length]
-}
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 export default function Dashboard() {
-  const [cases, setCases] = useState(DEMO_CASES)
-  const [totalIncome, setTotalIncome] = useState(0)
-  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [cases, setCases] = useState([])
+  const [invoices, setInvoices] = useState([])
+  const [expenses, setExpenses] = useState([])
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
+  const now = new Date()
+  const monthName = MONTHS[now.getMonth()]
+  const year = now.getFullYear()
+  const monthStart = new Date(year, now.getMonth(), 1).toISOString()
+  const prevMonthStart = new Date(year, now.getMonth()-1, 1).toISOString()
+  const prevMonthEnd = new Date(year, now.getMonth(), 0).toISOString()
+
   useEffect(() => {
-    getCases().then(({ data }) => { if (data?.length) setCases(data) })
-    getInvoices().then(({ data }) => {
-      if (data?.length) {
-        const paid = data.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
-        setTotalIncome(paid)
-      }
-    })
-    getExpenses().then(({ data }) => {
-      if (data?.length) setTotalExpenses(data.reduce((s, e) => s + e.amount, 0))
-    })
+    Promise.all([
+      getCases().then(({data}) => setCases(data||[])),
+      getInvoices().then(({data}) => setInvoices(data||[])),
+      getExpenses().then(({data}) => setExpenses(data||[]))
+    ]).then(() => setLoading(false))
   }, [])
 
-  const active = cases.filter(c => !['done'].includes(c.status)).length
-  const pending = cases.filter(c => c.status === 'pending').length
-  const ready = cases.filter(c => c.status === 'done').length
-  const profit = totalIncome - totalExpenses
+  // This month stats
+  const thisMonthCases = cases.filter(c => c.created_at >= monthStart)
+  const prevMonthCases = cases.filter(c => c.created_at >= prevMonthStart && c.created_at <= prevMonthEnd)
 
-  const actions = cases.filter(c => ['pending','progress','suspicious'].includes(c.status)).slice(0,3)
+  const active = cases.filter(c => !['done'].includes(c.status)).length
+  const pending = cases.filter(c => c.status === 'pending' || c.status === 'new').length
+  const suspicious = cases.filter(c => c.status === 'suspicious' || c.status === 'manipulated').length
+  const done = cases.filter(c => c.status === 'done').length
+
+  // Income
+  const thisMonthIncome = invoices.filter(i => i.status==='paid' && i.created_at >= monthStart).reduce((s,i)=>s+i.amount,0)
+  const prevMonthIncome = invoices.filter(i => i.status==='paid' && i.created_at >= prevMonthStart && i.created_at <= prevMonthEnd).reduce((s,i)=>s+i.amount,0)
+  const totalIncome = invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+i.amount,0)
+  const totalExpenses = expenses.reduce((s,e)=>s+Number(e.amount),0)
+  const thisMonthExpenses = expenses.filter(e => e.created_at >= monthStart).reduce((s,e)=>s+Number(e.amount),0)
+  const netProfit = thisMonthIncome - thisMonthExpenses
+  const outstanding = invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+i.amount,0)
+
+  // Trend arrows
+  const caseTrend = thisMonthCases.length - prevMonthCases.length
+  const incomeTrend = thisMonthIncome - prevMonthIncome
+
+  // Actions needed
+  const actions = cases.filter(c=>['pending','progress','suspicious','new'].includes(c.status)).slice(0,5)
+
+  // Fraud rate this month
+  const fraudThisMonth = thisMonthCases.filter(c=>(c.verdict||'').toUpperCase().includes('FRAUDULENT')||(c.verdict||'').toUpperCase().includes('SUSPICIOUS')).length
+  const fraudRate = thisMonthCases.length > 0 ? Math.round(fraudThisMonth/thisMonthCases.length*100) : 0
+
+  // Last 6 months bar chart data
+  const last6 = Array.from({length:6},(_,i)=>{
+    const m = new Date(year, now.getMonth()-5+i, 1)
+    const mEnd = new Date(year, now.getMonth()-5+i+1, 0).toISOString()
+    const mStart = m.toISOString()
+    const cnt = cases.filter(c=>c.created_at>=mStart&&c.created_at<=mEnd).length
+    const inc = invoices.filter(i=>i.status==='paid'&&i.created_at>=mStart&&i.created_at<=mEnd).reduce((s,x)=>s+x.amount,0)
+    return { label: SHORT_MONTHS[m.getMonth()], cases: cnt, income: inc }
+  })
+  const maxCases = Math.max(...last6.map(m=>m.cases),1)
+  const maxIncome = Math.max(...last6.map(m=>m.income),1)
+
+  if (loading) return <div style={{padding:20,textAlign:'center',color:'var(--text3)'}}>Loading dashboard...</div>
 
   return (
     <div>
-      {/* Metrics */}
+      {/* Date header */}
+      <div style={{marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <div style={{fontSize:13,color:'var(--text3)'}}>
+            {now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={()=>navigate('/cases/new')}>
+          <Plus size={13}/> New case
+        </button>
+      </div>
+
+      {/* Key metrics */}
       <div className="metrics-grid">
         <div className="metric-card">
           <div className="metric-label">Active cases</div>
           <div className="metric-value blue">{active}</div>
-          <div className="metric-sub">This month</div>
+          <div className="metric-sub" style={{display:'flex',alignItems:'center',gap:4}}>
+            {caseTrend > 0 && <span style={{color:'var(--success)'}}>↑ {caseTrend} vs last month</span>}
+            {caseTrend < 0 && <span style={{color:'var(--danger)'}}>↓ {Math.abs(caseTrend)} vs last month</span>}
+            {caseTrend === 0 && <span>Same as last month</span>}
+          </div>
         </div>
         <div className="metric-card">
-          <div className="metric-label">Awaiting docs</div>
-          <div className="metric-value amber">{pending}</div>
-          <div className="metric-sub">Need follow-up</div>
+          <div className="metric-label">{monthName} income</div>
+          <div className="metric-value green">৳{thisMonthIncome.toLocaleString()}</div>
+          <div className="metric-sub" style={{display:'flex',alignItems:'center',gap:4}}>
+            {incomeTrend > 0 && <span style={{color:'var(--success)'}}>↑ ৳{incomeTrend.toLocaleString()} vs last month</span>}
+            {incomeTrend < 0 && <span style={{color:'var(--danger)'}}>↓ ৳{Math.abs(incomeTrend).toLocaleString()} vs last month</span>}
+            {incomeTrend === 0 && <span>Same as last month</span>}
+          </div>
         </div>
         <div className="metric-card">
-          <div className="metric-label">Net profit</div>
-          <div className="metric-value green">৳{profit.toLocaleString()}</div>
-          <div className="metric-sub">June 2026</div>
+          <div className="metric-label">Outstanding</div>
+          <div className="metric-value amber">৳{outstanding.toLocaleString()}</div>
+          <div className="metric-sub">{invoices.filter(i=>i.status!=='paid').length} unpaid invoices</div>
         </div>
         <div className="metric-card">
-          <div className="metric-label">Reports done</div>
-          <div className="metric-value">{ready}</div>
-          <div className="metric-sub">Delivered</div>
+          <div className="metric-label">Fraud rate</div>
+          <div className="metric-value red">{fraudRate}%</div>
+          <div className="metric-sub">{monthName} · {fraudThisMonth} flagged</div>
+        </div>
+      </div>
+
+      {/* Secondary metrics row */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+        {[
+          {label:'Pending',value:pending,color:'var(--warning)'},
+          {label:'Suspicious',value:suspicious,color:'var(--danger)'},
+          {label:'Delivered',value:done,color:'var(--success)'},
+          {label:'Net profit',value:`৳${netProfit.toLocaleString()}`,color:netProfit>=0?'var(--success)':'var(--danger)'},
+        ].map(({label,value,color})=>(
+          <div key={label} style={{background:'#fff',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',textAlign:'center'}}>
+            <div style={{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.4px',marginBottom:4}}>{label}</div>
+            <div style={{fontSize:17,fontWeight:700,color}}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 6-month trend */}
+      <div className="card mb-16">
+        <div className="card-header"><TrendingUp size={14}/> 6-month trend</div>
+        <div style={{padding:'12px 16px'}}>
+          {/* Cases bar */}
+          <div style={{fontSize:11.5,color:'var(--text3)',marginBottom:6,fontWeight:600}}>CASES</div>
+          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginBottom:12}}>
+            {last6.map((m,i)=>(
+              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                <div style={{fontSize:9.5,color:'var(--text3)'}}>{m.cases||''}</div>
+                <div style={{width:'100%',background:i===5?'var(--navy)':'var(--surface2)',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(m.cases/maxCases*32),m.cases>0?4:0)}px`,minHeight:m.cases>0?4:0}}/>
+                <div style={{fontSize:9.5,color:'var(--text3)'}}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+          {/* Income bar */}
+          <div style={{fontSize:11.5,color:'var(--text3)',marginBottom:6,fontWeight:600}}>INCOME (৳)</div>
+          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:40}}>
+            {last6.map((m,i)=>(
+              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                <div style={{fontSize:9,color:'var(--text3)'}}>{m.income>0?`${Math.round(m.income/1000)}k`:''}</div>
+                <div style={{width:'100%',background:i===5?'var(--success)':'#BBF7D0',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(m.income/maxIncome*32),m.income>0?4:0)}px`,minHeight:m.income>0?4:0}}/>
+                <div style={{fontSize:9.5,color:'var(--text3)'}}>{m.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -70,21 +169,19 @@ export default function Dashboard() {
       {actions.length > 0 && (
         <div className="card mb-16">
           <div className="card-header">
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={15} color="var(--warning)" /> Actions needed
+            <span style={{display:'flex',alignItems:'center',gap:6}}>
+              <AlertTriangle size={15} color="var(--warning)"/> Actions needed
             </span>
+            <span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>{actions.length} cases</span>
           </div>
-          {actions.map(c => (
-            <div key={c.id} className="list-row" onClick={() => navigate(`/cases/${c.id}`)}>
-              <div style={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                background: c.status === 'suspicious' ? 'var(--danger)' : c.status === 'pending' ? 'var(--warning)' : 'var(--info)'
-              }} />
+          {actions.map(c=>(
+            <div key={c.id} className="list-row" onClick={()=>navigate(`/cases/${c.id}`)}>
+              <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,background:c.status==='suspicious'||c.status==='manipulated'?'var(--danger)':c.status==='pending'?'var(--warning)':'var(--info)'}}/>
               <div className="row-main">
                 <div className="row-title">{c.client_name}</div>
                 <div className="row-sub">{c.case_id} · {c.country} · {statusLabel[c.status]}</div>
               </div>
-              <ChevronRight size={15} color="var(--text3)" />
+              <ChevronRight size={15} color="var(--text3)"/>
             </div>
           ))}
         </div>
@@ -94,10 +191,11 @@ export default function Dashboard() {
       <div className="card mb-16">
         <div className="card-header">
           Recent cases
-          <button className="btn btn-sm" onClick={() => navigate('/cases')}>View all</button>
+          <button className="btn btn-sm" onClick={()=>navigate('/cases')}>View all</button>
         </div>
-        {cases.slice(0, 4).map(c => (
-          <div key={c.id} className="list-row" onClick={() => navigate(`/cases/${c.id}`)}>
+        {cases.length===0 && <div style={{padding:20,textAlign:'center',color:'var(--text3)',fontSize:13}}>No cases yet</div>}
+        {cases.slice(0,5).map(c=>(
+          <div key={c.id} className="list-row" onClick={()=>navigate(`/cases/${c.id}`)}>
             <div className={`row-avatar ${avatarColor(c.client_name)}`}>{initials(c.client_name)}</div>
             <div className="row-main">
               <div className="row-title">{c.client_name}</div>
@@ -105,19 +203,25 @@ export default function Dashboard() {
             </div>
             <div className="row-right">
               <span className={`badge ${c.status}`}>{statusLabel[c.status]}</span>
-              <span style={{ fontSize: 11, color: 'var(--text3)' }}>৳{c.amount}</span>
+              <span style={{fontSize:11,color:'var(--text3)'}}>৳{c.amount}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <button className="btn btn-primary btn-full" style={{ padding: '12px' }} onClick={() => navigate('/cases/new')}>
-          <Plus size={16} /> New case
+      {/* Quick nav */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>navigate('/intelligence')}>
+          <Globe size={15}/> Intelligence
         </button>
-        <button className="btn btn-full" style={{ padding: '12px' }} onClick={() => navigate('/invoices')}>
-          <FileCheck size={16} /> Invoices
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>navigate('/staff')}>
+          <Users size={15}/> Staff KPI
+        </button>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>navigate('/invoices')}>
+          <FileCheck size={15}/> Invoices
+        </button>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>navigate('/finance')}>
+          <TrendingUp size={15}/> Finance
         </button>
       </div>
     </div>
