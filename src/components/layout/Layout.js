@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { useAuth, ROLES, hasAccess } from '../../App'
+import { useAuth, ROLES, hasAccess } from '../../lib/auth'
 import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import './styles/index.css'
@@ -20,23 +20,8 @@ import Social from './pages/Social'
 import Templates from './pages/Templates'
 import AccessControl from './pages/AccessControl'
 
-export const AuthContext = createContext(null)
-export const useAuth = () => useContext(AuthContext)
-
-// Role permissions
-export const ROLES = {
-  admin: { label: 'Admin / CEO', color: 'var(--navy)', pages: ['*'] },
-  sales: { label: 'Sales Assistant', color: 'var(--success)', pages: ['/', 'cases', 'cases/new', 'comms', 'marketing', 'social', 'templates'] },
-  accounting: { label: 'Accounting', color: 'var(--warning)', pages: ['/', 'invoices', 'finance'] },
-}
-
-export function hasAccess(role, path) {
-  if (!role || role === 'admin') return true
-  const perms = ROLES[role]?.pages || []
-  if (perms.includes('*')) return true
-  const clean = path.replace(/^\//, '').split('/')[0] || ''
-  return perms.some(p => p === '/' ? clean === '' : p === clean || p.startsWith(clean))
-}
+export { AuthContext, useAuth, ROLES, hasAccess } from './lib/auth'
+import { AuthContext } from './lib/auth'
 
 function ProtectedRoute({ children, page }) {
   const { user, role, loading } = useAuth()
