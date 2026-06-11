@@ -64,6 +64,7 @@ export default function Layout() {
     if (p.includes('/marketing')) return { title: 'Marketing', sub: 'Campaign performance & ROI' }
     if (p.includes('/social')) return { title: 'Social Media', sub: 'Post scheduler & tracker' }
     if (p.includes('/templates')) return { title: 'WA Templates', sub: 'Bengali WhatsApp message templates' }
+    if (p.includes('/access')) return { title: 'Staff Access', sub: 'Manage roles & permissions' }
     return { title: 'VVC Ops', sub: '' }
   }
 
@@ -101,33 +102,29 @@ export default function Layout() {
         ))}
 
         <div className="sidebar-section">Analytics</div>
-        <button className={`nav-link ${isActive('/intelligence') ? 'active' : ''}`} onClick={() => go('/intelligence')}>
-          <Globe size={16} /> Intelligence
-        </button>
-        <button className={`nav-link ${isActive('/staff') ? 'active' : ''}`} onClick={() => go('/staff')}>
-          <Users size={16} /> Staff
-        </button>
+        {canSee('intelligence') && <button className={`nav-link ${isActive('/intelligence') ? 'active' : ''}`} onClick={() => go('/intelligence')}><Globe size={16} /> Intelligence</button>}
+        {canSee('staff') && <button className={`nav-link ${isActive('/staff') ? 'active' : ''}`} onClick={() => go('/staff')}><Users size={16} /> Staff</button>}
 
         <div className="sidebar-section">Operations</div>
-        <button className={`nav-link ${isActive('/comms') ? 'active' : ''}`} onClick={() => go('/comms')}>
-          <MessageCircle size={16} /> Comms log
-        </button>
-        <button className={`nav-link ${isActive('/marketing') ? 'active' : ''}`} onClick={() => go('/marketing')}>
-          <TrendingUp size={16} /> Marketing
-        </button>
-        <button className={`nav-link ${isActive('/social') ? 'active' : ''}`} onClick={() => go('/social')}>
-          <Share2 size={16} /> Social media
-        </button>
-        <button className={`nav-link ${isActive('/templates') ? 'active' : ''}`} onClick={() => go('/templates')}>
-          <Zap size={16} /> WA Templates
-        </button>
+        {canSee('comms') && <button className={`nav-link ${isActive('/comms') ? 'active' : ''}`} onClick={() => go('/comms')}><MessageCircle size={16} /> Comms log</button>}
+        {canSee('marketing') && <button className={`nav-link ${isActive('/marketing') ? 'active' : ''}`} onClick={() => go('/marketing')}><TrendingUp size={16} /> Marketing</button>}
+        {canSee('social') && <button className={`nav-link ${isActive('/social') ? 'active' : ''}`} onClick={() => go('/social')}><Share2 size={16} /> Social media</button>}
+        {canSee('templates') && <button className={`nav-link ${isActive('/templates') ? 'active' : ''}`} onClick={() => go('/templates')}><Zap size={16} /> WA Templates</button>}
 
         <div className="sidebar-section">System</div>
-        <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => go('/settings')}>
-          <Settings size={16} /> Settings
-        </button>
+        {canSee('settings') && <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => go('/settings')}><Settings size={16} /> Settings</button>}
+        {currentRole === 'admin' && <button className={`nav-link ${isActive('/access') ? 'active' : ''}`} onClick={() => go('/access')}><ShieldCheck size={16} /> Staff access</button>}
 
-        <div className="sidebar-footer">
+        <div style={{padding:'8px 18px 0',borderTop:'1px solid rgba(255,255,255,.1)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0'}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:roleInfo.color,flexShrink:0}}/>
+          <div>
+            <div style={{fontSize:11.5,color:'rgba(255,255,255,.9)',fontWeight:600}}>{user?.email?.split('@')[0]}</div>
+            <div style={{fontSize:10.5,color:'rgba(255,255,255,.5)'}}>{roleInfo.label}</div>
+          </div>
+        </div>
+      </div>
+      <div className="sidebar-footer">
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', marginBottom: 8 }}>
             VVC Global · Dhaka, BD
           </div>
