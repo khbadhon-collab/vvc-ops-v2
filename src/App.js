@@ -17,6 +17,7 @@ import Staff from './pages/Staff'
 import Comms from './pages/Comms'
 import Marketing from './pages/Marketing'
 import Social from './pages/Social'
+import Templates from './pages/Templates'
 
 export const AuthContext = createContext(null)
 export const useAuth = () => useContext(AuthContext)
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="comms" element={<Comms />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="social" element={<Social />} />
+            <Route path="templates" element={<Templates />} />
           </Route>
         </Routes>
       </BrowserRouter>

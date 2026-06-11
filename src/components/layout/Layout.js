@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,
   ShieldCheck, Bell, Globe, Users,
-  MessageCircle, TrendingUp, Share2
+  MessageCircle, TrendingUp, Share2, Zap
 } from 'lucide-react'
 
 const navItems = [
@@ -63,6 +63,7 @@ export default function Layout() {
     if (p.includes('/comms')) return { title: 'Comms Log', sub: 'All client communications' }
     if (p.includes('/marketing')) return { title: 'Marketing', sub: 'Campaign performance & ROI' }
     if (p.includes('/social')) return { title: 'Social Media', sub: 'Post scheduler & tracker' }
+    if (p.includes('/templates')) return { title: 'WA Templates', sub: 'Bengali WhatsApp message templates' }
     return { title: 'VVC Ops', sub: '' }
   }
 
@@ -116,6 +117,9 @@ export default function Layout() {
         </button>
         <button className={`nav-link ${isActive('/social') ? 'active' : ''}`} onClick={() => go('/social')}>
           <Share2 size={16} /> Social media
+        </button>
+        <button className={`nav-link ${isActive('/templates') ? 'active' : ''}`} onClick={() => go('/templates')}>
+          <Zap size={16} /> WA Templates
         </button>
 
         <div className="sidebar-section">System</div>

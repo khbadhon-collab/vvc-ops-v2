@@ -31,7 +31,8 @@ export default function NewCase() {
     tier: 'basic', ai_engine: 'gemini',
     payment_method: 'bKash Send Money',
     lead_source: 'WhatsApp',
-    assigned_to: ''
+    assigned_to: '',
+    referred_by: ''
   })
   const [qty, setQty] = useState(1)
 
@@ -64,6 +65,7 @@ export default function NewCase() {
         payment_method: form.payment_method,
         lead_source: form.lead_source,
         assigned_to: form.assigned_to,
+        referred_by: form.referred_by,
       })
       setCreatedCase(newCase)
       setStep(3)
@@ -130,7 +132,7 @@ export default function NewCase() {
           </button>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money', lead_source:'WhatsApp', assigned_to:'' }); setQty(1); setCreatedCase(null) }}>New case</button>
+          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money', lead_source:'WhatsApp', assigned_to:'', referred_by:'' }); setQty(1); setCreatedCase(null) }}>New case</button>
           <button className="btn btn-primary btn-full" onClick={() => navigate(`/cases/${createdCase.id}`)}>Open case →</button>
         </div>
       </div>

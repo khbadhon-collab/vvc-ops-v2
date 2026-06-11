@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCases, getInvoices, getExpenses } from '../lib/supabase'
-import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe } from 'lucide-react'
+import { getCases, getInvoices, getExpenses, buildWhatsAppLink, waFollowUp, waReviewRequest } from '../lib/supabase'
+import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star } from 'lucide-react'
 
 const statusLabel = { pending: 'Awaiting docs', progress: 'In review', suspicious: 'Suspicious', manipulated: 'Manipulated', done: 'Delivered', new: 'New' }
 const initials = (n) => n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()
@@ -208,6 +208,56 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Follow-up alerts — cases pending 3+ days */}
+      {(() => {
+        const threeDaysAgo = new Date(Date.now() - 3*24*60*60*1000).toISOString()
+        const stale = cases.filter(c => ['pending','new'].includes(c.status) && c.created_at < threeDaysAgo && c.client_phone)
+        if (stale.length === 0) return null
+        return (
+          <div className="card mb-16">
+            <div className="card-header" style={{color:'var(--warning)'}}>
+              <span style={{display:'flex',alignItems:'center',gap:6}}><Clock size={15}/> Follow-up needed</span>
+              <span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>{stale.length} cases pending 3+ days</span>
+            </div>
+            {stale.slice(0,3).map(c=>(
+              <div key={c.id} style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{c.client_name}</div>
+                  <div style={{fontSize:11.5,color:'var(--text3)'}}>{c.case_id} · {c.country}</div>
+                </div>
+                <a href={buildWhatsAppLink(c.client_phone, waFollowUp(c.client_name, c.case_id))} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm" style={{flexShrink:0}}>
+                  <MessageCircle size={12}/> Follow up
+                </a>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Review requests — completed cases */}
+      {(() => {
+        const recent = cases.filter(c => c.status === 'done' && c.client_phone).slice(0,2)
+        if (recent.length === 0) return null
+        return (
+          <div className="card mb-16">
+            <div className="card-header">
+              <span style={{display:'flex',alignItems:'center',gap:6}}><Star size={15} color="var(--gold)"/> Ask for reviews</span>
+            </div>
+            {recent.map(c=>(
+              <div key={c.id} style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{c.client_name}</div>
+                  <div style={{fontSize:11.5,color:'var(--text3)'}}>{c.case_id} · Delivered</div>
+                </div>
+                <a href={buildWhatsAppLink(c.client_phone, waReviewRequest(c.client_name))} target="_blank" rel="noreferrer" className="btn btn-sm" style={{flexShrink:0,color:'var(--warning)',borderColor:'var(--warning)'}}>
+                  <Star size={12}/> Request
+                </a>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Quick nav */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>

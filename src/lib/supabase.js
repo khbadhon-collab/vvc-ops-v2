@@ -103,3 +103,27 @@ export const waReportMessage = (client, caseId, verdict) =>
 
 export const waPaymentConfirm = (client, caseId) =>
   `আসসালামু আলাইকুম ${client}! ✅\n\nআপনার পেমেন্ট নিশ্চিত হয়েছে।\n📋 কেস আইডি: ${caseId}\n\nআপনার ডকুমেন্টগুলো পাঠান, আমরা যাচাই শুরু করব।\n\nধন্যবাদ\nVVC Global`
+
+// ── WHATSAPP TEMPLATES ──
+export const WA_TEMPLATES = {
+  initial_reply: (client) =>
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআমাদের সাথে যোগাযোগ করার জন্য ধন্যবাদ।\n\nVisa Verification Center (VVC) আপনার ভিসা ও কর্মসংস্থান ডকুমেন্ট যাচাই করে। আপনার ডকুমেন্টগুলো পাঠান এবং আমরা জানাব এগুলো আসল কিনা।\n\n✅ সার্ভিস: Basic ৳১,০০০ (৪৮ঘণ্টা) | Urgent ৳৩,০০০ (২৪ঘণ্টা)\n💳 Payment: bKash / Nagad\n\nধন্যবাদ\nVVC Global`,
+
+  payment_reminder: (client, caseId, amount, method) =>
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার কেস (${caseId}) এর পেমেন্ট এখনো পাওয়া যায়নি।\n\n💰 পরিমাণ: ৳${amount}\n💳 পেমেন্ট: ${method}\n\nঅনুগ্রহ করে পেমেন্ট করে স্ক্রিনশট পাঠান।\n\nধন্যবাদ\nVVC Global`,
+
+  report_ready: (client, caseId, verdict) =>
+    `আসসালামু আলাইকুম ${client}! ✅\n\nআপনার ভিসা যাচাই রিপোর্ট তৈরি হয়েছে।\n\n📋 কেস: ${caseId}\n🔍 ফলাফল: ${verdict}\n\nরিপোর্টটি নিচে পাঠানো হলো। যেকোনো প্রশ্নের জন্য যোগাযোগ করুন।\n\nধন্যবাদ\nVVC Global`,
+
+  review_request: (client) =>
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআমাদের সেবা আপনার কেমন লেগেছে? একটু রিভিউ দিলে আমরা খুব খুশি হবো। 🌟\n\n👉 https://www.facebook.com/VisaVerificationCenter\n\nআপনার সহযোগিতার জন্য ধন্যবাদ।\nVVC Global`,
+
+  follow_up: (client, caseId) =>
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার কেস (${caseId}) এর বিষয়ে জানতে চাইছিলাম। ডকুমেন্টগুলো কি পাঠাতে পারবেন?\n\nধন্যবাদ\nVVC Global`,
+
+  fraud_alert: (country, docType) =>
+    `⚠️ সতর্কতা!\n\n${country} থেকে ${docType} সংক্রান্ত জাল ডকুমেন্ট ধরা পড়েছে।\n\nবিদেশে যাওয়ার আগে আপনার ডকুমেন্ট যাচাই করুন।\n\n📞 VVC Global — Visa Verification Center\n✅ ১০০% ডিজিটাল সার্ভিস`,
+}
+
+export const waFollowUp = (client, caseId) => WA_TEMPLATES.follow_up(client, caseId)
+export const waReviewRequest = (client) => WA_TEMPLATES.review_request(client)
