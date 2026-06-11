@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useAuth, ROLES, hasAccess } from '../../App'
 import {
   LayoutDashboard, FolderOpen, FilePlus, Receipt,
   BarChart2, Settings, Menu, X, LogOut,
@@ -36,6 +37,9 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, role: currentRole } = useAuth()
+  const roleInfo = ROLES[currentRole] || ROLES.admin
+  const canSee = (path) => hasAccess(currentRole, path)
 
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
