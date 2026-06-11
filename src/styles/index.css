@@ -516,3 +516,53 @@ body {
 .font-bold { font-weight: 700; }
 .text-center { text-align: center; }
 .w-full { width: 100%; }
+
+/* ── MOBILE FIXES ── */
+@media (max-width: 768px) {
+  /* Fix metric cards text overflow */
+  .metric-value { font-size: 20px; }
+  .metric-label { font-size: 10px; }
+
+  /* Fix tabs overflow on small screens */
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .tab-btn { white-space: nowrap; padding: 10px 12px; font-size: 12.5px; }
+
+  /* Fix card headers */
+  .card-header { font-size: 13px; }
+
+  /* Fix bottom nav labels */
+  .bottom-nav-item { font-size: 9.5px; }
+
+  /* Fix form inputs on mobile */
+  .form-input, .form-select { font-size: 16px; } /* prevents zoom on iOS */
+
+  /* Fix buttons in grids */
+  .btn { font-size: 12.5px; padding: 8px 12px; }
+  .btn-sm { font-size: 11.5px; padding: 5px 9px; }
+
+  /* Fix metrics grid on very small screens */
+  .metrics-grid { gap: 8px; }
+
+  /* Fix modals on mobile */
+  [style*="position:fixed"] > div,
+  [style*="position: fixed"] > div { max-width: calc(100vw - 32px) !important; }
+
+  /* Fix list rows */
+  .row-title { font-size: 13px; }
+  .row-sub { font-size: 11px; }
+
+  /* Fix search bar */
+  .search-bar input { font-size: 14px; }
+
+  /* Fix page padding */
+  .page { padding: 12px; }
+
+  /* Fix overflow in flex rows */
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+}
+
+@media (max-width: 380px) {
+  .metric-value { font-size: 17px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tab-btn { padding: 8px 10px; font-size: 11.5px; }
+}

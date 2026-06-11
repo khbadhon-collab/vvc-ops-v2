@@ -44,11 +44,17 @@ export default function Staff() {
     if (data) setStaff(data)
   }
 
+  const hasAssignedData = cases.some(c => c.assigned_to)
+
   const getMonthCases = (staffId, month) => {
     return cases.filter(c => {
       const d = new Date(c.created_at)
-      return d.getMonth() === month && d.getFullYear() === year &&
-        (staffId === 'all' || c.assigned_to === staffId)
+      const inMonth = d.getMonth() === month && d.getFullYear() === year
+      if (!inMonth) return false
+      if (staffId === 'all') return true
+      // If no cases have assigned_to yet, distribute evenly
+      if (!hasAssignedData) return true
+      return c.assigned_to === staffId
     })
   }
 
@@ -300,6 +306,11 @@ export default function Staff() {
                       <div style={{fontWeight:700}}>{kpi.progress}%</div>
                     </div>
                   </div>
+                  {!hasAssignedData && staff.length > 1 && (
+                    <div style={{fontSize:11,color:'var(--warning)',marginBottom:8,padding:'6px 10px',background:'var(--warning-bg)',borderRadius:6}}>
+                      ⚠ Cases not yet assigned to staff. Showing team total. Select "Handled by" when creating new cases to track per-staff.
+                    </div>
+                  )}
                   {Object.keys(kpi.bySource).length>0 && (
                     <div>
                       <div style={{fontSize:12,fontWeight:600,marginBottom:6,color:'var(--text2)'}}>Lead sources</div>

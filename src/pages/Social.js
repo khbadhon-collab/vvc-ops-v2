@@ -42,7 +42,7 @@ export default function Social() {
   const openEdit = (p) => {
     setEditPost(p)
     setForm({ platform:p.platform, tone:p.tone||'Professional', caption:p.caption, hashtags:p.hashtags||'', scheduled_date:p.scheduled_date?.slice(0,16)||'', status:p.status, notes:p.notes||'' })
-    setAdding(true); setTab('form')
+    setAdding(true)
   }
 
   const markPosted = async (p) => {
@@ -96,6 +96,23 @@ export default function Social() {
         <div className="metric-card"><div className="metric-label">Skipped</div><div className="metric-value red">{skipped.length}</div></div>
       </div>
 
+      {/* Facebook Page quick link */}
+      <div style={{background:'#E7F3FF',border:'1px solid #B3D4FF',borderRadius:8,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
+        <div style={{width:28,height:28,borderRadius:'50%',background:'#1877F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <span style={{color:'#fff',fontWeight:700,fontSize:13}}>f</span>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12.5,fontWeight:600,color:'#1877F2'}}>VVC Facebook Page</div>
+          <div style={{fontSize:11.5,color:'var(--text3)'}}>facebook.com/VisaVerificationCenter</div>
+        </div>
+        <a href="https://www.facebook.com/VisaVerificationCenter" target="_blank" rel="noreferrer" className="btn btn-sm" style={{color:'#1877F2',borderColor:'#1877F2',flexShrink:0}}>Open →</a>
+      </div>
+
+      {/* Facebook note */}
+      <div style={{background:'var(--warning-bg)',border:'1px solid #FDE68A',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12.5,color:'var(--warning)'}}>
+        💡 <strong>Auto-posting not available</strong> — Facebook requires business app verification (weeks of review). Use this tracker to plan posts, then manually post on Facebook. Tap "Open →" above to go to your page.
+      </div>
+
       {/* Today's posts alert */}
       {todayPosts.length > 0 && (
         <div style={{background:'var(--info-bg)',border:'1px solid var(--info)',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:13}}>
@@ -120,10 +137,17 @@ export default function Social() {
         ))}
       </div>
 
+      {/* Add post button */}
+      {!adding && (
+        <button className="btn btn-primary btn-full mb-12" style={{padding:11}} onClick={()=>{setAdding(true);setEditPost(null);setForm({ platform:'Facebook', tone:'Professional', caption:'', hashtags:'', scheduled_date:'', status:'Scheduled', notes:'' })}}>
+          <Plus size={15}/> Schedule new post
+        </button>
+      )}
+
       {/* Tabs */}
       <div className="tabs">
-        {[{key:'queue',label:'Queue'},{ key:'posted',label:'Posted'},{ key:'skipped',label:'Skipped'},{ key:'form',label:'+ Add post'}].map(({key,label})=>(
-          <button key={key} className={`tab-btn ${tab===key?'active':''}`} onClick={()=>{setTab(key);if(key==='form'){setAdding(true);setEditPost(null);setForm({ platform:'Facebook', tone:'Professional', caption:'', hashtags:'', scheduled_date:'', status:'Scheduled', notes:'' })}}}>
+        {[{key:'queue',label:`Queue (${posts.filter(p=>p.status==='Scheduled').length})`},{key:'posted',label:`Posted (${posted.length})`},{key:'skipped',label:`Skipped (${skipped.length})`}].map(({key,label})=>(
+          <button key={key} className={`tab-btn ${tab===key?'active':''}`} onClick={()=>setTab(key)}>
             {label}
           </button>
         ))}
@@ -163,7 +187,7 @@ export default function Social() {
               </div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              <button className="btn btn-full" onClick={()=>{setAdding(false);setEditPost(null);setTab('queue')}}>Cancel</button>
+              <button className="btn btn-full" onClick={()=>{setAdding(false);setEditPost(null)}}>Cancel</button>
               <button className="btn btn-primary btn-full" onClick={save} disabled={saving}>{saving?'Saving...':'Save post'}</button>
             </div>
           </div>
@@ -171,7 +195,7 @@ export default function Social() {
       )}
 
       {/* Post list */}
-      {tab!=='form' && (
+      {!adding && (
         <div className="card">
           {filtered.length===0 && <div style={{padding:24,textAlign:'center',color:'var(--text3)',fontSize:13}}>No posts here yet.</div>}
           {filtered.map(p=>(
