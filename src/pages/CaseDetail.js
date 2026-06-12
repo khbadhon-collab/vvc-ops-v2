@@ -266,15 +266,79 @@ Please analyze these documents and generate the full verification report.`
     showSuccess('Report saved')
   }
 
-  const downloadPDF = () => {
-    const content = reportText || 'No report generated yet.'
-    const blob = new Blob([`VVC GLOBAL — OFFICIAL DOCUMENT VERIFICATION REPORT\n\n${content}`], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `VVC-Report-${caseData?.case_id || id}.txt`
-    a.click()
-    showSuccess('Report downloaded')
+  const downloadPDF = async () => {
+    if (!reportText) { showError('No report to download yet.'); return }
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const W = 210, pad = 18
+
+    // Header background
+    doc.setFillColor(15, 76, 129)
+    doc.rect(0, 0, W, 40, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('VISA VERIFICATION CENTER — VVC GLOBAL', pad, 15)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Document Intelligence Unit | Consumer Protection Advisory', pad, 22)
+    doc.text('Dhaka, Bangladesh  |  vvcbd2026@gmail.com', pad, 29)
+    doc.text(`Case ID: ${caseData?.case_id || ''}  |  Date: ${new Date().toLocaleDateString('en-GB')}`, pad, 36)
+
+    // Gold divider line
+    doc.setDrawColor(212, 175, 55)
+    doc.setLineWidth(1)
+    doc.line(0, 40, W, 40)
+
+    // Case info box
+    doc.setFillColor(248, 250, 252)
+    doc.rect(pad, 45, W - pad*2, 22, 'F')
+    doc.setTextColor(40, 40, 40)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CLIENT:', pad+3, 53)
+    doc.text('COUNTRY:', pad+3, 60)
+    doc.setFont('helvetica', 'normal')
+    doc.text(caseData?.client_name || '—', pad+22, 53)
+    doc.text(`${caseData?.country || '—'}  |  ${caseData?.doc_type || '—'}`, pad+22, 60)
+
+    // Report body
+    doc.setFontSize(9.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(30, 30, 30)
+    const lines = doc.splitTextToSize(reportText, W - pad*2)
+    let y = 74
+    lines.forEach(line => {
+      if (y > 268) {
+        doc.addPage()
+        doc.setFillColor(15, 76, 129)
+        doc.rect(0, 0, W, 12, 'F')
+        doc.setTextColor(255,255,255)
+        doc.setFontSize(8)
+        doc.text('VVC GLOBAL — Confidential Document Intelligence Report', pad, 8)
+        y = 20
+        doc.setTextColor(30, 30, 30)
+        doc.setFontSize(9.5)
+      }
+      doc.text(line, pad, y)
+      y += 5.5
+    })
+
+    // Footer
+    const pages = doc.getNumberOfPages()
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i)
+      doc.setFillColor(15, 76, 129)
+      doc.rect(0, 282, W, 15, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(7.5)
+      doc.text('CONFIDENTIAL — This report is prepared exclusively for the client named above by VVC Global, Document Intelligence Unit.', pad, 288)
+      doc.text(`Page ${i} of ${pages}  |  VVC Global  |  vvcbd2026@gmail.com`, W - pad, 293, { align: 'right' })
+    }
+
+    const fileName = `VVC-Report-${caseData?.case_id || id}.pdf`
+    doc.save(fileName)
+    showSuccess(`Report downloaded: ${fileName}`)
   }
 
   const FACEBOOK_REVIEW_LINK = 'https://www.facebook.com/share/p/1FeoDDYg1D/'
@@ -417,9 +481,12 @@ Please analyze these documents and generate the full verification report.`
                     <Save size={14} /> Save changes
                   </button>
                 )}
-                <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={downloadPDF}>
-                  <Download size={14} /> Download
+                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={downloadPDF}>
+                  <Download size={14} /> Download PDF
                 </button>
+              </div>
+              <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12.5,color:'var(--success)'}}>
+                📋 <strong>To send report to client:</strong> Download PDF → Go to Actions tab → Click "Send report" → WhatsApp opens → Attach the PDF → Send
               </div>
 
               {editingReport ? (
