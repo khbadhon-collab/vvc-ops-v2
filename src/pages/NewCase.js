@@ -178,12 +178,31 @@ export default function NewCase() {
                   {COUNTRIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group">
                 <label className="form-label">Document type *</label>
                 <select className="form-select" value={form.doc_type} onChange={e => set('doc_type', e.target.value)}>
                   <option value="">Select type</option>
                   {DOC_TYPES.map(d => <option key={d}>{d}</option>)}
                 </select>
+              </div>
+              <div className="form-row">
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Lead source</label>
+                  <select className="form-select" value={form.lead_source} onChange={e => set('lead_source', e.target.value)}>
+                    {['WhatsApp','Facebook Ads','Facebook Organic','Phone Call','Referral','Other'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Handled by (staff)</label>
+                  <select className="form-select" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
+                    <option value="">— Select staff —</option>
+                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Referred by (optional)</label>
+                <input className="form-input" placeholder="Who referred this client?" value={form.referred_by} onChange={e => set('referred_by', e.target.value)} />
               </div>
             </div>
           </div>
