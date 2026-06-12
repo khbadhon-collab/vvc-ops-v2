@@ -96,33 +96,33 @@ export const buildWhatsAppLink = (phone, message) => {
 }
 
 export const waInvoiceMessage = (client, caseId, amount, method) =>
-  `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার ভিসা যাচাই সেবার জন্য ইনভয়েস:\n\n📋 কেস আইডি: ${caseId}\n💰 পরিমাণ: ৳${amount}\n💳 পেমেন্ট: ${method}\n\nপেমেন্ট করার পরে স্ক্রিনশট পাঠান।\n\nধন্যবাদ\nVVC Global`
+  `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার ডকুমেন্ট যাচাই সেবার জন্য ইনভয়েস পাঠানো হলো।\n\n📋 কেস আইডি: ${caseId}\n💰 পরিমাণ: ৳${amount}\n💳 পেমেন্ট পদ্ধতি: ${method}\n\nঅনুগ্রহ করে পেমেন্ট করার পরে স্ক্রিনশট পাঠান। আমরা নিশ্চিত করব।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`
 
 export const waReportMessage = (client, caseId, verdict) =>
-  `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার ভিসা যাচাই রিপোর্ট তৈরি হয়েছে।\n\n📋 কেস আইডি: ${caseId}\n🔍 ফলাফল: ${verdict}\n\nরিপোর্টটি সংযুক্ত করা হয়েছে। যেকোনো প্রশ্নের জন্য যোগাযোগ করুন।\n\nধন্যবাদ\nVVC Global`
+  `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার রিপোর্ট তৈরি হয়েছে।\n\n📋 কেস আইডি: ${caseId}\n\nরিপোর্টটি সংযুক্ত করা হলো। অনুগ্রহ করে ডাউনলোড করে দেখুন।\n\nযেকোনো প্রশ্নের জন্য যোগাযোগ করুন।\n\nধন্যবাদ\nVVC Global`
 
 export const waPaymentConfirm = (client, caseId) =>
-  `আসসালামু আলাইকুম ${client}! ✅\n\nআপনার পেমেন্ট নিশ্চিত হয়েছে।\n📋 কেস আইডি: ${caseId}\n\nআপনার ডকুমেন্টগুলো পাঠান, আমরা যাচাই শুরু করব।\n\nধন্যবাদ\nVVC Global`
+  `আসসালামু আলাইকুম ${client}! ✅\n\nআপনার পেমেন্ট সফলভাবে গ্রহণ করা হয়েছে।\n\n📋 কেস আইডি: ${caseId}\n\nআমরা আপনার ডকুমেন্ট যাচাই প্রক্রিয়া শুরু করেছি। রিপোর্ট তৈরি হলে আপনাকে জানানো হবে।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`
 
 // ── WHATSAPP TEMPLATES ──
 export const WA_TEMPLATES = {
   initial_reply: (client) =>
-    `আসসালামু আলাইকুম ${client}! 🙏\n\nআমাদের সাথে যোগাযোগ করার জন্য ধন্যবাদ।\n\nVisa Verification Center (VVC) আপনার ভিসা ও কর্মসংস্থান ডকুমেন্ট যাচাই করে। আপনার ডকুমেন্টগুলো পাঠান এবং আমরা জানাব এগুলো আসল কিনা।\n\n✅ সার্ভিস: Basic ৳১,০০০ (৪৮ঘণ্টা) | Urgent ৳৩,০০০ (২৪ঘণ্টা)\n💳 Payment: bKash / Nagad\n\nধন্যবাদ\nVVC Global`,
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআমাদের সাথে যোগাযোগ করার জন্য আন্তরিক ধন্যবাদ।\n\nVVC Global — Document Intelligence Unit বিদেশে কর্মসংস্থান ও ভ্রমণ সংক্রান্ত সকল ধরনের ডকুমেন্ট যাচাই করে থাকে, যেমন: ভিসা, ওয়ার্ক পারমিট, অফার লেটার, এমপ্লয়মেন্ট কনট্র্যাক্ট ইত্যাদি।\n\nআপনার ডকুমেন্টগুলো পাঠান। আমরা যাচাই করে জানাবো এগুলো আসল কিনা।\n\n✅ Basic: ৳১,০০০ (৪৮ ঘণ্টা)\n✅ Urgent: ৳৩,০০০ (২৪ ঘণ্টা)\n💳 Payment: bKash / Nagad / Rocket\n\nসন্দেহ হলে আগে যাচাই করুন, তারপর টাকা দিন।\n\nধন্যবাদ\nVVC Global`,
 
   payment_reminder: (client, caseId, amount, method) =>
     `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার কেস (${caseId}) এর পেমেন্ট এখনো পাওয়া যায়নি।\n\n💰 পরিমাণ: ৳${amount}\n💳 পেমেন্ট: ${method}\n\nঅনুগ্রহ করে পেমেন্ট করে স্ক্রিনশট পাঠান।\n\nধন্যবাদ\nVVC Global`,
 
   report_ready: (client, caseId, verdict) =>
-    `আসসালামু আলাইকুম ${client}! ✅\n\nআপনার ভিসা যাচাই রিপোর্ট তৈরি হয়েছে।\n\n📋 কেস: ${caseId}\n🔍 ফলাফল: ${verdict}\n\nরিপোর্টটি নিচে পাঠানো হলো। যেকোনো প্রশ্নের জন্য যোগাযোগ করুন।\n\nধন্যবাদ\nVVC Global`,
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার ডকুমেন্ট যাচাই রিপোর্ট তৈরি হয়েছে।\n\n📋 কেস আইডি: ${caseId}\n\nরিপোর্টটি সংযুক্ত করা হলো। অনুগ্রহ করে ডাউনলোড করে বিস্তারিত দেখুন।\n\nরিপোর্টটি বাংলায় পড়তে Google Translate ব্যবহার করতে পারেন।\n\nযেকোনো প্রশ্নের জন্য আমাদের সাথে যোগাযোগ করুন।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`,
 
   review_request: (client) =>
-    `আসসালামু আলাইকুম ${client}! 🙏\n\nআমাদের সেবা আপনার কেমন লেগেছে? একটু রিভিউ দিলে আমরা খুব খুশি হবো। 🌟\n\n👉 https://www.facebook.com/VisaVerificationCenter\n\nআপনার সহযোগিতার জন্য ধন্যবাদ।\nVVC Global`,
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআশা করি আমাদের ডকুমেন্ট যাচাই সেবা আপনার কাজে এসেছে।\n\nআপনার একটি রিভিউ আমাদের অনেক সাহায্য করবে এবং অন্য মানুষদের প্রতারণা থেকে বাঁচাতে সহায়তা করবে। 🌟\n\n👉 রিভিউ দিতে এখানে ক্লিক করুন:\nhttps://www.facebook.com/VisaVerificationCenter\n\nআপনার বিশ্বাস ও সহযোগিতার জন্য আন্তরিক ধন্যবাদ।\nVVC Global — Document Intelligence Unit`,
 
   follow_up: (client, caseId) =>
-    `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার কেস (${caseId}) এর বিষয়ে জানতে চাইছিলাম। ডকুমেন্টগুলো কি পাঠাতে পারবেন?\n\nধন্যবাদ\nVVC Global`,
+    `আসসালামু আলাইকুম ${client}! 🙏\n\nআপনার কেস (${caseId}) সম্পর্কে একটু জানতে চাইছিলাম।\n\nআপনার ডকুমেন্টগুলো এখনো পাওয়া যায়নি। অনুগ্রহ করে যত দ্রুত সম্ভব পাঠান, যাতে আমরা যাচাই প্রক্রিয়া শুরু করতে পারি।\n\nকোনো সমস্যা হলে জানান, আমরা সাহায্য করব।\n\nধন্যবাদ\nVVC Global`,
 
   fraud_alert: (country, docType) =>
-    `⚠️ সতর্কতা!\n\n${country} থেকে ${docType} সংক্রান্ত জাল ডকুমেন্ট ধরা পড়েছে।\n\nবিদেশে যাওয়ার আগে আপনার ডকুমেন্ট যাচাই করুন।\n\n📞 VVC Global — Visa Verification Center\n✅ ১০০% ডিজিটাল সার্ভিস`,
+    `⚠️ জরুরি সতর্কবার্তা!\n\n${country} থেকে ${docType} সংক্রান্ত জাল ডকুমেন্ট সম্প্রতি আমাদের নজরে এসেছে।\n\nবিদেশে যাওয়ার আগে অবশ্যই আপনার ডকুমেন্ট যাচাই করুন। প্রতারণার শিকার হলে অর্থ ও সময় দুটোই নষ্ট হবে।\n\n✅ VVC Global — Document Intelligence Unit\n🔍 ১০০% ডিজিটাল · নিরাপদ · বিশ্বস্ত\n\nসন্দেহ হলে আগে যাচাই করুন।`,
 }
 
 export const waFollowUp = (client, caseId) => WA_TEMPLATES.follow_up(client, caseId)

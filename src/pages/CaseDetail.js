@@ -554,7 +554,7 @@ Please analyze these documents and generate the full verification report.`
                 সর্বদা ব্যাংক গ্যারান্টি বা যাচাইযোগ্য মাধ্যমে পেমেন্ট করুন। ব্যক্তিগত অ্যাকাউন্টে টাকা পাঠাবেন না।<br/><br/>
                 <strong>⚠️ সতর্কবার্তা:</strong> কেউ যদি '১০০% ভিসা গ্যারান্টি' দেয়, এটি স্ক্যামের সবচেয়ে বড় লক্ষণ।
               </div>
-              <a href={buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\n📋 VVC Global - ক্লায়েন্ট সুরক্ষা নির্দেশিকা\n\n✅ অফার লেটার/ওয়ার্কপারমিট সবসময় যাচাই করুন\n✅ এজেন্সির ট্রেড লাইসেন্স ও BMET নিবন্ধন দেখুন\n✅ স্ট্যাম্পযুক্ত লিখিত চুক্তি ছাড়া টাকা দেবেন না\n✅ ব্যাংক/bKash-এ পেমেন্ট করুন, ক্যাশ নয়\n\n⚠️ '১০০% ভিসা গ্যারান্টি' = স্ক্যামের লক্ষণ\n\nসন্দেহ হলে আগে যাচাই করুন, তারপর টাকা দিন।\n\nVVC Global — Document Intelligence Unit`)}
+              <a href={buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআপনার জন্য VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা পাঠানো হলো।\n\nঅনুগ্রহ করে সংযুক্ত PDF ফাইলটি ডাউনলোড করুন এবং বিস্তারিত পড়ুন। এটি আপনাকে বিদেশে কাজ বা ভ্রমণের ক্ষেত্রে প্রতারণা থেকে সুরক্ষিত রাখতে সাহায্য করবে।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`)}
                 target="_blank" rel="noreferrer"
                 className="btn btn-wa btn-full mb-10" style={{justifyContent:'center'}}>
                 <MessageCircle size={14}/> Send advisory via WhatsApp
