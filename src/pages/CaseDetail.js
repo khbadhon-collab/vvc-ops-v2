@@ -77,9 +77,18 @@ export default function CaseDetail() {
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [reportFile, setReportFile] = useState(null)
+  const [sentLog, setSentLog] = useState({})
+  const [allCaseIds, setAllCaseIds] = useState([])
 
   useEffect(() => {
     loadCase()
+    // Load all case IDs for navigation
+    supabase.from('cases').select('id').order('created_at',{ascending:false}).then(({data})=>{
+      if(data) setAllCaseIds(data.map(c=>c.id))
+    })
+    // Load sent log from localStorage
+    const saved = localStorage.getItem('sentLog_'+id)
+    if(saved) setSentLog(JSON.parse(saved))
   }, [id])
 
   const loadCase = async () => {
@@ -139,6 +148,24 @@ export default function CaseDetail() {
       showError('Receipt upload failed')
     }
     setReceiptUploading(false)
+  }
+
+  const markSent = (action) => {
+    const updated = { ...sentLog, [action]: new Date().toLocaleString('en-GB') }
+    setSentLog(updated)
+    localStorage.setItem('sentLog_'+id, JSON.stringify(updated))
+    // Also log to comms_log
+    supabase.from('comms_log').insert([{
+      case_id: id,
+      client_name: caseData?.client_name,
+      client_phone: caseData?.client_phone,
+      channel: 'WhatsApp',
+      direction: 'outbound',
+      outcome: 'Sent',
+      notes: action,
+      date: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    }])
   }
 
   const saveEditCase = async () => {
@@ -570,25 +597,57 @@ Please analyze these documents and generate the full verification report.`
       {/* ACTIONS TAB */}
       {tab === 'actions' && (
         <div>
+          {/* How it works note */}
+          <div style={{background:'var(--surface2)',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12,color:'var(--text2)'}}>
+            💡 Click <strong>Send</strong> → WhatsApp opens with message ready → attach file if needed → send → come back → click <strong>✓ Mark sent</strong>
+          </div>
+
           <div className="card mb-12">
-            <div className="card-header">WhatsApp actions</div>
-            <div style={{ padding: '4px 0' }}>
-              <div className="wa-action" style={{ margin: '10px 14px' }}>
-                <MessageCircle size={18} color="#25D366" style={{ flexShrink: 0 }} />
-                <div className="wa-action-text">
-                  <strong>Send payment confirmation</strong>
-                  <span>Notify client payment received</span>
+            <div className="card-header">📱 WhatsApp actions</div>
+            <div style={{padding:'8px 0'}}>
+              {[
+                { key:'payment_confirm', label:'Payment confirmation', sub:'Notify client payment received', link: waConfirmLink },
+                { key:'report_sent', label:'Send report', sub:'Open WhatsApp → attach PDF → send', link: waReportLink },
+                { key:'translator', label:'Send translator guide', sub:'How to read report in Bengali', link: buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏
+
+আপনার VVC রিপোর্টটি বাংলায় পড়তে Google Translate ব্যবহার করুন:
+
+👉 ডাউনলোড করুন: https://play.google.com/store/apps/details?id=com.google.android.apps.translate
+
+অ্যাপ ওপেন করে Documents অপশন সিলেক্ট করুন → PDF আপলোড করুন → English থেকে Bangla তে অনুবাদ করুন।
+
+ধন্যবাদ
+VVC Global`) },
+                { key:'advisory', label:'Send client advisory', sub:'Client protection guidelines PDF', link: buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏
+
+আপনার জন্য VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা পাঠানো হলো।
+
+অনুগ্রহ করে সংযুক্ত PDF ফাইলটি ডাউনলোড করুন এবং বিস্তারিত পড়ুন।
+
+ধন্যবাদ
+VVC Global — Document Intelligence Unit`) },
+                { key:'review', label:'Request review', sub:'Ask for Facebook review', link: waReviewLink },
+              ].map(action => (
+                <div key={action.key} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
+                  <MessageCircle size={16} color="#25D366" style={{flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13}}>{action.label}</div>
+                    <div style={{fontSize:11.5,color:'var(--text3)'}}>{action.sub}</div>
+                  </div>
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    {sentLog[action.key] ? (
+                      <span style={{fontSize:11.5,color:'var(--success)',fontWeight:600,display:'flex',alignItems:'center',gap:4}}>
+                        <CheckCircle size={13}/> Sent
+                      </span>
+                    ) : (
+                      <>
+                        <a href={action.link} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm" onClick={()=>{}}>Send</a>
+                        <button className="btn btn-sm" style={{fontSize:11,padding:'4px 8px',color:'var(--success)',borderColor:'var(--success)'}} onClick={()=>markSent(action.key)}>✓ Mark sent</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <a href={waConfirmLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
-              </div>
-              <div className="wa-action" style={{ margin: '0 14px 10px' }}>
-                <MessageCircle size={18} color="#25D366" style={{ flexShrink: 0 }} />
-                <div className="wa-action-text">
-                  <strong>Send report to client</strong>
-                  <span>Opens WhatsApp · attach PDF · send</span>
-                </div>
-                <a href={waReportLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -676,6 +735,24 @@ Please analyze these documents and generate the full verification report.`
           </button>
         </div>
       )}
+      {/* Next / Previous case navigation */}
+      {allCaseIds.length > 1 && (() => {
+        const currentIdx = allCaseIds.indexOf(id)
+        const prevId = currentIdx > 0 ? allCaseIds[currentIdx - 1] : null
+        const nextId = currentIdx < allCaseIds.length - 1 ? allCaseIds[currentIdx + 1] : null
+        return (
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:16,marginBottom:8}}>
+            <button className="btn btn-full" style={{padding:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
+              disabled={!prevId} onClick={()=>prevId&&navigate(`/cases/${prevId}`)}>
+              ← Previous case
+            </button>
+            <button className="btn btn-primary btn-full" style={{padding:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
+              disabled={!nextId} onClick={()=>nextId&&navigate(`/cases/${nextId}`)}>
+              Next case →
+            </button>
+          </div>
+        )
+      })()}
     </div>
   )
 }

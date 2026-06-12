@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import React, { useState, useEffect } from 'react'
 import { getInvoices, markInvoicePaid, getExpenses, addExpense, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
-import { CheckCircle, MessageCircle, Plus, Trash2, Edit2 } from 'lucide-react'
+import { CheckCircle, MessageCircle, Plus, Trash2, Edit2, Download } from 'lucide-react'
 
 // ── INVOICES ──
 export function Invoices() {
@@ -22,6 +22,104 @@ export function Invoices() {
   const handleMarkPaid = async (inv) => {
     await markInvoicePaid(inv.id, inv.payment_method)
     setInvoices(list => list.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i))
+  }
+
+  const generateInvoicePDF = async (inv) => {
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const W = 210, pad = 20
+    
+    // Header
+    doc.setFillColor(15, 76, 129)
+    doc.rect(0, 0, W, 38, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('VISA VERIFICATION CENTER', pad, 16)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Document Intelligence Unit | VVC Global | Dhaka, Bangladesh', pad, 24)
+    doc.text('vvcbd2026@gmail.com  |  +880 1943-160122', pad, 31)
+
+    // Invoice title
+    doc.setTextColor(15, 76, 129)
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('INVOICE', W - pad, 52, { align: 'right' })
+    
+    // Invoice meta
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Invoice No: ${inv.invoice_number}`, W - pad, 60, { align: 'right' })
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, W - pad, 66, { align: 'right' })
+    doc.text(`Case Ref: ${inv.case_ref || '—'}`, W - pad, 72, { align: 'right' })
+
+    // Client info
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(40, 40, 40)
+    doc.text('BILLED TO:', pad, 52)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(inv.client_name || '—', pad, 60)
+    doc.text(inv.client_phone || '', pad, 67)
+
+    // Divider
+    doc.setDrawColor(15, 76, 129)
+    doc.setLineWidth(0.5)
+    doc.line(pad, 80, W - pad, 80)
+
+    // Table header
+    doc.setFillColor(240, 244, 248)
+    doc.rect(pad, 83, W - pad*2, 10, 'F')
+    doc.setTextColor(15, 76, 129)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DESCRIPTION', pad + 2, 90)
+    doc.text('AMOUNT', W - pad - 2, 90, { align: 'right' })
+
+    // Service row
+    doc.setTextColor(40, 40, 40)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text('Document Intelligence & Verification Service', pad + 2, 101)
+    doc.text(`Case: ${inv.case_ref || inv.invoice_number}`, pad + 2, 107)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`BDT ${Number(inv.amount).toLocaleString()}`, W - pad - 2, 101, { align: 'right' })
+
+    // Divider
+    doc.setDrawColor(200, 200, 200)
+    doc.line(pad, 113, W - pad, 113)
+
+    // Total
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(15, 76, 129)
+    doc.text('TOTAL:', W - pad - 40, 122)
+    doc.text(`BDT ${Number(inv.amount).toLocaleString()}`, W - pad - 2, 122, { align: 'right' })
+
+    // Payment info
+    doc.setFillColor(248, 250, 252)
+    doc.rect(pad, 130, W - pad*2, 28, 'F')
+    doc.setFontSize(9)
+    doc.setTextColor(80, 80, 80)
+    doc.setFont('helvetica', 'bold')
+    doc.text('PAYMENT DETAILS', pad + 4, 138)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Method: ${inv.payment_method || 'bKash'}`, pad + 4, 145)
+    doc.text(`Status: ${inv.status?.toUpperCase() || 'UNPAID'}`, pad + 4, 151)
+    doc.text(`bKash: 01317-185875  |  Nagad: 01317-185875`, pad + 4, 157)
+
+    // Footer
+    doc.setFillColor(15, 76, 129)
+    doc.rect(0, 275, W, 22, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(8)
+    doc.text('Thank you for choosing VVC Global — Protecting Bangladeshis from Overseas Employment Fraud', W/2, 283, { align: 'center' })
+    doc.text('This is a computer generated invoice. No signature required.', W/2, 290, { align: 'center' })
+
+    doc.save(`VVC-Invoice-${inv.invoice_number}.pdf`)
   }
 
   const handleDelete = async () => {
@@ -182,6 +280,9 @@ export function Invoices() {
               {inv.status === 'paid' && (
                 <span style={{ fontSize: 11.5, color: 'var(--text3)' }}>Paid via {inv.payment_method}</span>
               )}
+              <button className="btn btn-sm" style={{color:'var(--navy)',borderColor:'var(--navy)'}} onClick={()=>generateInvoicePDF(inv)}>
+                <Download size={11}/> PDF
+              </button>
             </div>
           </div>
         ))}
