@@ -101,6 +101,65 @@ export default function Social() {
         )
       })()}
 
+      {/* Weekly post activity chart */}
+      {posts.length > 0 && (() => {
+        const last7 = Array.from({length:7}, (_,i) => {
+          const d = new Date()
+          d.setDate(d.getDate() - (6-i))
+          const dateStr = d.toISOString().slice(0,10)
+          const dayPosts = posts.filter(p => p.scheduled_date?.slice(0,10) === dateStr)
+          return {
+            label: d.toLocaleDateString('en-GB',{weekday:'short'}),
+            date: dateStr,
+            scheduled: dayPosts.filter(p=>p.status==='Scheduled').length,
+            posted: dayPosts.filter(p=>p.status==='Posted').length,
+            skipped: dayPosts.filter(p=>p.status==='Skipped').length,
+            total: dayPosts.length
+          }
+        })
+        const maxDay = Math.max(...last7.map(d=>d.total), 1)
+        const byPlatform = {}
+        posts.filter(p=>p.status==='Posted').forEach(p => { byPlatform[p.platform]=(byPlatform[p.platform]||0)+1 })
+        return (
+          <div className="card mb-12">
+            <div className="card-header">📊 Last 7 days activity</div>
+            <div style={{padding:'12px 16px'}}>
+              <div style={{display:'flex',gap:4,alignItems:'flex-end',height:60,marginBottom:8}}>
+                {last7.map((d,i) => (
+                  <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                    <div style={{fontSize:9.5,color:'var(--text3)',fontWeight:600}}>{d.total||''}</div>
+                    <div style={{width:'100%',display:'flex',flexDirection:'column',gap:1,justifyContent:'flex-end',height:48}}>
+                      {d.posted > 0 && <div style={{width:'100%',background:'var(--success)',borderRadius:2,height:`${Math.round(d.posted/maxDay*40)+4}px`}}/>}
+                      {d.scheduled > 0 && <div style={{width:'100%',background:'var(--navy)',borderRadius:2,height:`${Math.round(d.scheduled/maxDay*40)+4}px`,opacity:.4}}/>}
+                      {d.skipped > 0 && <div style={{width:'100%',background:'var(--danger)',borderRadius:2,height:`${Math.round(d.skipped/maxDay*40)+4}px`,opacity:.4}}/>}
+                    </div>
+                    <div style={{fontSize:9.5,color:d.date===today?'var(--navy)':'var(--text3)',fontWeight:d.date===today?700:400}}>{d.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:12,fontSize:11,marginTop:4}}>
+                <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:8,height:8,borderRadius:2,background:'var(--success)',display:'inline-block'}}/>Posted</span>
+                <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:8,height:8,borderRadius:2,background:'var(--navy)',opacity:.4,display:'inline-block'}}/>Scheduled</span>
+                <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:8,height:8,borderRadius:2,background:'var(--danger)',opacity:.4,display:'inline-block'}}/>Skipped</span>
+              </div>
+            </div>
+            {Object.keys(byPlatform).length > 0 && (
+              <div style={{padding:'0 16px 12px',borderTop:'1px solid var(--border)'}}>
+                <div style={{fontSize:11.5,fontWeight:600,color:'var(--text2)',margin:'10px 0 6px',textTransform:'uppercase',letterSpacing:'.4px'}}>Posted by platform</div>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  {Object.entries(byPlatform).sort((a,b)=>b[1]-a[1]).map(([plat,cnt])=>(
+                    <div key={plat} style={{background:'var(--surface2)',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{width:8,height:8,borderRadius:'50%',background:plat==='Facebook'?'#1877F2':plat==='Instagram'?'#E1306C':plat==='LinkedIn'?'#0A66C2':'#000',display:'inline-block'}}/>
+                      {plat}: {cnt}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Facebook Page quick link */}
       <div style={{background:'#E7F3FF',border:'1px solid #B3D4FF',borderRadius:8,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
         <div style={{width:28,height:28,borderRadius:'50%',background:'#1877F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
