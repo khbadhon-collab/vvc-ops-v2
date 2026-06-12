@@ -12,10 +12,14 @@ export default function Cases() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    getCases().then(({ data }) => { if (data?.length) setCases(data) })
+    getCases().then(({ data }) => {
+      if (data?.length) setCases(data)
+      setLoading(false)
+    })
   }, [])
 
   const handleDelete = async (e, caseItem) => {
@@ -82,7 +86,9 @@ export default function Cases() {
       </div>
 
       <div className="card">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{padding:30,textAlign:'center',color:'var(--text3)',fontSize:13}}>Loading cases...</div>
+        ) : filtered.length === 0 ? (
           <div className="empty-state"><Search size={32} /><h3>No cases found</h3><p>Try a different search or filter</p></div>
         ) : filtered.map(c => (
           <div key={c.id} style={{ display:'flex', alignItems:'center', borderBottom:'1px solid var(--border)' }}>
