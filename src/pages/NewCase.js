@@ -4,7 +4,31 @@ import { createCase, createInvoice, buildWhatsAppLink, waInvoiceMessage } from '
 import { Upload, X, MessageCircle, FileText, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-const COUNTRIES = ['Andorra','Albania','Australia','Bosnia','Bulgaria','Croatia','Cyprus','Czech Republic','Denmark','Fiji','Georgia','Germany','Greece','Hungary','Italy','Jordan','Malta','Moldova','Montenegro','Morocco','Netherlands','New Zealand','North Macedonia','Norway','Poland','Portugal','Romania','Serbia','Slovenia','Spain','Sweden','Switzerland','UAE','UK','USA']
+const COUNTRIES = [
+  // Middle East & Gulf
+  'Bahrain','Iraq','Jordan','Kuwait','Lebanon','Oman','Qatar','Saudi Arabia','UAE','Yemen',
+  // Southeast Asia
+  'Brunei','Cambodia','Indonesia','Laos','Malaysia','Myanmar','Philippines','Singapore','Thailand','Vietnam',
+  // East Asia
+  'China','Hong Kong','Japan','Macau','South Korea','Taiwan',
+  // South Asia
+  'India','Maldives','Nepal','Sri Lanka',
+  // Europe - Western
+  'Andorra','Austria','Belgium','Denmark','Finland','France','Germany','Greece','Iceland','Ireland',
+  'Italy','Luxembourg','Malta','Monaco','Netherlands','Norway','Portugal','Spain','Sweden','Switzerland','UK',
+  // Europe - Eastern
+  'Albania','Belarus','Bosnia','Bulgaria','Croatia','Cyprus','Czech Republic','Estonia','Georgia',
+  'Hungary','Kosovo','Latvia','Lithuania','Moldova','Montenegro','North Macedonia','Poland',
+  'Romania','Russia','Serbia','Slovakia','Slovenia','Ukraine',
+  // Africa
+  'Egypt','Ethiopia','Ghana','Kenya','Libya','Mauritius','Morocco','Nigeria','South Africa','Tanzania','Tunisia','Uganda',
+  // Americas
+  'Argentina','Brazil','Canada','Chile','Colombia','Mexico','Peru','USA',
+  // Oceania
+  'Australia','Fiji','New Zealand','Papua New Guinea',
+  // Other
+  'Israel','Kazakhstan','Turkey','Uzbekistan'
+].sort()
 const DOC_TYPES = ['Employment visa','Work permit','Employment contract','Offer letter','Visa + permit bundle','Residence permit','Business visa','Student visa','Other']
 const TIERS = [
   { key: 'basic', label: 'Basic Verification', price: 1000, time: '48 hrs' },
