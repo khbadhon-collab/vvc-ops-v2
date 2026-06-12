@@ -330,8 +330,6 @@ Please analyze these documents and generate the full verification report.`
           { key:'analysis', label:'Analysis' },
           { key:'report', label:'Report' },
           { key:'notes', label:'Notes' },
-          { key:'translator', label:'🌐 Translator' },
-          { key:'advisory', label:'📋 Advisory' },
           { key:'actions', label:'Actions' },
         ].map(t => (
           <button key={t.key} className={`tab-btn ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
@@ -514,85 +512,9 @@ Please analyze these documents and generate the full verification report.`
         </div>
       )}
 
-      {/* TRANSLATOR TAB */}
-      {tab === 'translator' && (
-        <div>
-          <div className="card mb-12">
-            <div className="card-header">🌐 Translator instructions for client</div>
-            <div className="card-body">
-              <div style={{fontSize:13,lineHeight:1.8,color:'var(--text)',marginBottom:16}}>
-                <strong style={{fontSize:13.5}}>📌 গুরুত্বপূর্ণ নির্দেশনা</strong><br/>
-                আপনি যদি আমাদের দেওয়া রিপোর্টটি ইংরেজি থেকে সহজভাবে বুঝতে চান, তাহলে নিচের পদ্ধতি অনুসরণ করুন:
-              </div>
-              <div style={{background:'var(--surface2)',borderRadius:8,padding:'12px 14px',marginBottom:12}}>
-                <div style={{fontWeight:700,fontSize:12.5,marginBottom:8}}>👉 Step-by-step নির্দেশনা:</div>
-                {[
-                  'প্রথমে নিচের লিঙ্কে ক্লিক করে Google Translate অ্যাপটি ডাউনলোড করুন',
-                  'অ্যাপটি ইনস্টল করার পর ওপেন করুন',
-                  'Camera আইকনে ক্লিক করুন অথবা Documents অপশন সিলেক্ট করুন',
-                  'এখন আপনার PDF ফাইলটি সিলেক্ট করুন',
-                  'ভাষা নির্বাচন করুন: From: English → To: Bangla (বাংলা)',
-                  'এরপর আপনার পুরো রিপোর্টটি বাংলায় সহজভাবে অনুবাদ হয়ে যাবে',
-                ].map((step, i) => (
-                  <div key={i} style={{display:'flex',gap:8,marginBottom:6,fontSize:12.5}}>
-                    <span style={{fontWeight:700,color:'var(--navy)',flexShrink:0}}>{i+1}.</span>
-                    <span>{step}</span>
-                  </div>
-                ))}
-              </div>
-              <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.translate" target="_blank" rel="noreferrer" className="btn btn-primary btn-full" style={{marginBottom:10,justifyContent:'center'}}>
-                📥 Google Translate ডাউনলোড করুন
-              </a>
-              <div style={{background:'#FEF3C7',borderRadius:8,padding:'10px 14px',fontSize:12.5,color:'#92400E'}}>
-                📌 <strong>Note:</strong> আপনি চাইলে Text copy & paste করেও Google Translate ব্যবহার করতে পারেন।
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-header">📤 Send translator instructions via WhatsApp</div>
-            <div className="card-body">
-              <a href={buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআপনার VVC রিপোর্টটি বাংলায় পড়তে Google Translate ব্যবহার করুন:\n\n👉 ডাউনলোড করুন: https://play.google.com/store/apps/details?id=com.google.android.apps.translate\n\nঅ্যাপ ওপেন করে Documents অপশন সিলেক্ট করুন → PDF আপলোড করুন → English থেকে Bangla তে অনুবাদ করুন।\n\nধন্যবাদ\nVVC Global`)}
-                target="_blank" rel="noreferrer"
-                className="btn btn-wa btn-full" style={{justifyContent:'center'}}>
-                <MessageCircle size={14}/> Send translator guide via WhatsApp
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ADVISORY TAB */}
-      {tab === 'advisory' && (
-        <div>
-          <div className="card mb-12">
-            <div className="card-header">📋 Client Protection Advisory</div>
-            <div className="card-body">
-              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:12}}>
-                VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা। এই ডকুমেন্টটি WhatsApp-এ পাঠান বা ডাউনলোড করুন।
-              </div>
-              <div style={{background:'var(--surface2)',borderRadius:8,padding:'12px 14px',fontSize:12.5,lineHeight:1.9,marginBottom:12}}>
-                <strong>১. অফার লেটার ও ওয়ার্কপারমিট যাচাই</strong><br/>
-                যেকোনো Offer Letter বা Work Permit গ্রহণের আগে নিশ্চিত করুন এটি অফিসিয়াল সরকারি প্রক্রিয়ায় ইস্যু করা হয়েছে। সন্দেহ হলে VVC-তে যাচাই করুন।<br/><br/>
-                <strong>২. এজেন্সির বৈধতা যাচাই করুন</strong><br/>
-                মালিকের NID, ট্রেড লাইসেন্স, BMET/MEWOE নিবন্ধন যাচাই করুন। শুধু ফোনে বিশ্বাস করবেন না।<br/><br/>
-                <strong>৩. স্ট্যাম্পযুক্ত চুক্তি বাধ্যতামূলক</strong><br/>
-                কোম্পানির নাম, কাজের বিবরণ, বেতন, থাকার ব্যবস্থা সহ সম্পূর্ণ চুক্তি লিখিতভাবে রাখুন।<br/><br/>
-                <strong>৪. পেমেন্ট নিরাপত্তা</strong><br/>
-                সর্বদা ব্যাংক গ্যারান্টি বা যাচাইযোগ্য মাধ্যমে পেমেন্ট করুন। ব্যক্তিগত অ্যাকাউন্টে টাকা পাঠাবেন না।<br/><br/>
-                <strong>⚠️ সতর্কবার্তা:</strong> কেউ যদি '১০০% ভিসা গ্যারান্টি' দেয়, এটি স্ক্যামের সবচেয়ে বড় লক্ষণ।
-              </div>
-              <a href={buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআপনার জন্য VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা পাঠানো হলো।\n\nঅনুগ্রহ করে সংযুক্ত PDF ফাইলটি ডাউনলোড করুন এবং বিস্তারিত পড়ুন। এটি আপনাকে বিদেশে কাজ বা ভ্রমণের ক্ষেত্রে প্রতারণা থেকে সুরক্ষিত রাখতে সাহায্য করবে।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`)}
-                target="_blank" rel="noreferrer"
-                className="btn btn-wa btn-full mb-10" style={{justifyContent:'center'}}>
-                <MessageCircle size={14}/> Send advisory via WhatsApp
-              </a>
-              <a href="/VVC_Client_Advisory.pdf" download className="btn btn-full" style={{justifyContent:'center'}}>
-                📥 Download advisory PDF
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+
+
 
       {/* ACTIONS TAB */}
       {tab === 'actions' && (
