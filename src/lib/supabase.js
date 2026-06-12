@@ -92,7 +92,7 @@ export const generateInvoiceNumber = () => {
 export const buildWhatsAppLink = (phone, message) => {
   const clean = (phone || '').replace(/\D/g, '')
   const encoded = encodeURIComponent(message)
-  return `https://wa.me/${clean}?text=${encoded}`
+  return `https://api.whatsapp.com/send?phone=${clean}&text=${encoded}`
 }
 
 export const waInvoiceMessage = (client, caseId, amount, method) =>
