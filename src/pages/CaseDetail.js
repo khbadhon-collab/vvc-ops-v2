@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCaseById, updateCase, buildWhatsAppLink, waReportMessage, waPaymentConfirm, supabase } from '../lib/supabase'
-import { Upload, Download, MessageCircle, CheckCircle, Info, ChevronLeft, FileText, Edit2, Save, AlertTriangle } from 'lucide-react'
+import { Download, MessageCircle, CheckCircle, Info, ChevronLeft, FileText, Edit2, Save, AlertTriangle, Upload } from 'lucide-react'
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
 const STATUS_OPTIONS = ['new','pending','progress','suspicious','manipulated','done']
@@ -196,30 +196,12 @@ export default function CaseDetail() {
         </div>
       )}
 
-      {/* ── SECTION 1: Upload client documents ── */}
-      <div className="card mb-12">
-        <div className="card-header"><Upload size={14}/> Step 1 — Client documents received</div>
-        <div className="card-body">
-          <label className="upload-zone" style={{cursor:uploading?'wait':'pointer',marginBottom:8}}>
-            <Upload size={18} style={{margin:'0 auto 4px',display:'block'}}/>
-            <p style={{fontSize:12.5}}>{uploading?'Adding...':'Tap to upload PDFs or images'}</p>
-            <span style={{fontSize:11.5,color:'var(--text3)'}}>Visa · permit · contract · passport · offer letter</span>
-            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:'none'}} onChange={handleFileUpload} disabled={uploading}/>
-          </label>
-          {files.map((f,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderTop:'1px solid var(--border)',fontSize:12.5}}>
-              <FileText size={13} color="var(--info)"/>
-              <span style={{flex:1}}>{f.name}</span>
-              <CheckCircle size={13} color="var(--success)"/>
-            </div>
-          ))}
-        </div>
-      </div>
+
 
       {/* ── SECTION 2: Payment receipt ── */}
       <div className="card mb-12">
         <div className="card-header">
-          💳 Step 2 — Payment receipt
+          💳 Step 1 — Payment receipt
           {c.payment_status==='received' && <span className="badge done">Received ✓</span>}
         </div>
         <div className="card-body">
@@ -234,7 +216,7 @@ export default function CaseDetail() {
 
       {/* ── SECTION 3: Report ── */}
       <div className="card mb-12">
-        <div className="card-header"><FileText size={14}/> Step 3 — VVC Report</div>
+        <div className="card-header"><FileText size={14}/> Step 2 — VVC Report</div>
         <div className="card-body">
           {!reportText && !editingReport ? (
             <div>
@@ -274,7 +256,7 @@ export default function CaseDetail() {
 
       {/* ── SECTION 4: Notes ── */}
       <div className="card mb-12">
-        <div className="card-header">📝 Step 4 — Notes & advice for client</div>
+        <div className="card-header">📝 Step 3 — Notes & advice for client</div>
         <div className="card-body">
           <textarea value={notes} onChange={e=>setNotes(e.target.value)}
             placeholder="Write your advice, observations, or notes about this case..."
@@ -287,7 +269,7 @@ export default function CaseDetail() {
 
       {/* ── SECTION 5: WhatsApp Actions ── */}
       <div className="card mb-12">
-        <div className="card-header">📱 Step 5 — Send to client via WhatsApp</div>
+        <div className="card-header">📱 Step 4 — Send to client via WhatsApp</div>
         <div style={{background:'var(--surface2)',padding:'8px 14px',fontSize:12,color:'var(--text2)'}}>
           Click <strong>Send</strong> → WhatsApp opens → attach file if needed → send → come back → tap <strong>✓ Sent</strong>
         </div>
