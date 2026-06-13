@@ -31,7 +31,7 @@ export default function Staff() {
   const [roles, setRoles] = useState(DEFAULT_ROLES)
   const [form, setForm] = useState({
     name:'', role:'Sales Assistant', phone:'', email:'',
-    salary:0, join_date: new Date().toISOString().slice(0,10), staff_id:''
+    salary:0, commission_rate:0, join_date: new Date().toISOString().slice(0,10), staff_id:''
   })
 
   const now = new Date()
@@ -76,9 +76,9 @@ export default function Staff() {
     if (!form.name) return
     const staffId = form.staff_id || generateStaffId()
     if (editStaff) {
-      await supabase.from('staff').update({ ...form, salary:Number(form.salary), staff_id:staffId }).eq('id',editStaff.id)
+      await supabase.from('staff').update({ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||0), staff_id:staffId }).eq('id',editStaff.id)
     } else {
-      await supabase.from('staff').insert([{ ...form, salary:Number(form.salary), staff_id:staffId, created_at:new Date().toISOString() }])
+      await supabase.from('staff').insert([{ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||0), staff_id:staffId, created_at:new Date().toISOString() }])
     }
     await loadStaff()
     setAdding(false); setEditStaff(null)
@@ -87,7 +87,7 @@ export default function Staff() {
 
   const openEdit = (s) => {
     setEditStaff(s)
-    setForm({ name:s.name, role:s.role, phone:s.phone||'', email:s.email||'', salary:s.salary||0, join_date:s.join_date||'', staff_id:s.staff_id||'' })
+    setForm({ name:s.name, role:s.role, phone:s.phone||'', email:s.email||'', salary:s.salary||0, commission_rate:s.commission_rate||0, join_date:s.join_date||'', staff_id:s.staff_id||'' })
     setAdding(true); setTab('form')
   }
 
@@ -214,6 +214,7 @@ export default function Staff() {
             </div>
             <div className="form-row">
               <div className="form-group"><label className="form-label">Monthly salary (৳)</label><input className="form-input" type="number" value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))}/></div>
+              <div className="form-group"><label className="form-label">Sales commission (%)</label><input className="form-input" type="number" placeholder="e.g. 5 = 5% per case revenue" value={form.commission_rate||0} onChange={e=>setForm(f=>({...f,commission_rate:e.target.value}))}/></div>
               <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
             </div>
             <div className="form-row">
@@ -285,6 +286,10 @@ export default function Staff() {
                   <div style={{textAlign:'center',padding:8}}>
                     <div style={{fontSize:18,fontWeight:800,color:kpi.bonus>0?'var(--success)':'var(--text3)'}}>৳{kpi.bonus.toLocaleString()}</div>
                     <div style={{fontSize:10.5,color:'var(--text3)'}}>Bonus</div>
+                  </div>
+                  <div style={{textAlign:'center',padding:8}}>
+                    <div style={{fontSize:18,fontWeight:800,color:'var(--info)'}}>৳{Math.round(kpi.revenue*(Number(s.commission_rate||0)/100)).toLocaleString()}</div>
+                    <div style={{fontSize:10.5,color:'var(--text3)'}}>Commission ({s.commission_rate||0}%)</div>
                   </div>
                 </div>
                 <div style={{padding:'0 16px 12px'}}>

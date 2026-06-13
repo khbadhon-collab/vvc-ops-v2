@@ -11,17 +11,21 @@ export function Invoices() {
   const [editInv, setEditInv] = useState(null)
   const [editData, setEditData] = useState({})
 
-  useEffect(() => {
-    getInvoices().then(({ data }) => { if (data?.length) setInvoices(data) })
-  }, [])
+  const loadInvoices = async () => {
+    const { data, error } = await getInvoices()
+    if (data) setInvoices(data)
+    if (error) console.error('Invoice load error:', error)
+  }
+
+  useEffect(() => { loadInvoices() }, [])
 
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter)
   const paid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
   const unpaid = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.amount, 0)
 
   const handleMarkPaid = async (inv) => {
-    await markInvoicePaid(inv.id, inv.payment_method)
-    setInvoices(list => list.map(i => i.id === inv.id ? { ...i, status: 'paid' } : i))
+    await markInvoicePaid(inv.id, editData.payment_method || inv.payment_method)
+    await loadInvoices()
   }
 
   const generateInvoicePDF = async (inv) => {
@@ -145,7 +149,7 @@ export function Invoices() {
     setSavingInv(true)
     const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Math.floor(1000+Math.random()*9000))
     await supabase.from('invoices').insert([{ ...newInv, amount: Number(newInv.amount), invoice_number: invNum, created_at: new Date().toISOString() }])
-    getInvoices().then(({ data }) => { if (data?.length) setInvoices(data) })
+    await loadInvoices()
     setNewInv({ client_name:'', client_phone:'', case_ref:'', amount:'', payment_method:'bKash Send Money', status:'unpaid' })
     setAddingInv(false)
     setSavingInv(false)

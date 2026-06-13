@@ -30,6 +30,8 @@ export default function Templates() {
   const [customForm, setCustomForm] = useState({ label:'', icon:'💬', body:'' })
   const [savingCustom, setSavingCustom] = useState(false)
   const [tab, setTab] = useState('builtin')
+  const [editBuiltin, setEditBuiltin] = useState(null)
+  const [editBuiltinBody, setEditBuiltinBody] = useState('')
 
   useEffect(() => {
     // Load cases
@@ -145,10 +147,16 @@ export default function Templates() {
       {tab === 'builtin' && (
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
           {BUILT_IN.map(t=>(
-            <div key={t.key} onClick={()=>selectBuiltin(t)} style={{background:active?.key===t.key?'var(--info-bg)':'#fff',border:`2px solid ${active?.key===t.key?'var(--navy)':'var(--border)'}`,borderRadius:10,padding:'12px 14px',cursor:'pointer'}}>
-              <div style={{fontSize:18,marginBottom:4}}>{t.icon}</div>
-              <div style={{fontWeight:700,fontSize:12.5,color:active?.key===t.key?'var(--navy)':'var(--text)'}}>{t.label}</div>
-              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{t.desc}</div>
+            <div key={t.key} style={{background:active?.key===t.key?'var(--info-bg)':'#fff',border:`2px solid ${active?.key===t.key?'var(--navy)':'var(--border)'}`,borderRadius:10,padding:'12px 14px',position:'relative'}}>
+              <div onClick={()=>selectBuiltin(t)} style={{cursor:'pointer'}}>
+                <div style={{fontSize:18,marginBottom:4}}>{t.icon}</div>
+                <div style={{fontWeight:700,fontSize:12.5,color:active?.key===t.key?'var(--navy)':'var(--text)'}}>{t.label}</div>
+                <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{t.desc}</div>
+              </div>
+              <button onClick={e=>{e.stopPropagation();setEditBuiltin(t);setEditBuiltinBody(WA_TEMPLATES[t.key]?.toString()||'');setTab('editbuiltin')}}
+                style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:'var(--navy)',padding:3}}>
+                <Edit2 size={12}/>
+              </button>
             </div>
           ))}
         </div>

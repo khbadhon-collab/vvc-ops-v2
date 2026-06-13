@@ -84,7 +84,7 @@ export default function CaseDetail() {
     loadCase()
     // Load all case IDs for navigation
     supabase.from('cases').select('id').order('created_at',{ascending:false}).then(({data})=>{
-      if(data) setAllCaseIds(data.map(c=>c.id))
+      if(data) setAllCaseIds(data.map(c=>String(c.id)))
     })
     // Load sent log from localStorage
     const saved = localStorage.getItem('sentLog_'+id)
@@ -726,7 +726,7 @@ VVC Global — Document Intelligence Unit`) },
       )}
       {/* Next / Previous case navigation */}
       {allCaseIds.length > 1 && (() => {
-        const currentIdx = allCaseIds.indexOf(id)
+        const currentIdx = allCaseIds.indexOf(String(id))
         const prevId = currentIdx > 0 ? allCaseIds[currentIdx - 1] : null
         const nextId = currentIdx < allCaseIds.length - 1 ? allCaseIds[currentIdx + 1] : null
         return (
