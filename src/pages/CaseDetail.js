@@ -1,100 +1,33 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCaseById, updateCase, buildWhatsAppLink, waReportMessage, waPaymentConfirm, supabase } from '../lib/supabase'
-import { Upload, Download, MessageCircle, AlertTriangle, XCircle, CheckCircle, Info, ChevronLeft, FileText, Edit2, Save, ExternalLink } from 'lucide-react'
+import { Upload, Download, MessageCircle, CheckCircle, Info, ChevronLeft, FileText, Edit2, Save, AlertTriangle } from 'lucide-react'
 
-const GEMINI_PROMPT = `You are a 20 YEARS EXPERIENCED ELITE senior forensic visa audit specialist at a Visa Verification Center with expert knowledge of global immigration systems employment laws and document authentication. Your task is to analyze submitted visa and employment related documents and produce a clear structured professional verification report. Follow all instructions strictly.
-
-1. Document Analysis: Evaluate document authenticity based on format structure and official standards. Identify inconsistencies spelling errors formatting issues and suspicious content. Verify document numbers including visa permit reference and registration identifiers. Check security features such as QR codes barcodes stamps seals and signatures.
-
-2. Employer Verification: Verify company identity legal existence and registration status. Assess online presence and business legitimacy. Identify mismatch between employer details and official records when applicable.
-
-3. Legal Compliance Check: Assess whether the document aligns with immigration rules of issuing country. Check whether approvals and legal authorizations appear valid and correctly structured. Identify missing government or labor authority approvals if required.
-
-4. Salary and Employment Validation: Compare salary with minimum wage standards of the destination country. Identify unrealistic or non compliant salary structures.
-
-5. Risk Classification: Classify final result into one of the following: Genuine / Suspicious / Fraudulent
-
-6. Missing Requirements: List any missing documents approvals or legal requirements.
-
-7. Final Output Format — Generate a clean professional report using EXACTLY this structure:
-
-Date: [date]
-Case ID: [case_id]
-Applicant Name: [name]
-Passport Number: [number or "Not provided"]
-Subject: Visa and Employment Document Verification Report
-
-ASSESSMENT RESULT: [GENUINE / SUSPICIOUS / FRAUDULENT]
-
-SUMMARY OF FINDINGS:
-[One paragraph professional summary]
-
-KEY FINDINGS:
-- [finding 1]
-- [finding 2]
-- [finding 3]
-
-COMPANY VERIFICATION:
-[Short statement about employer legitimacy]
-
-SALARY AND COMPLIANCE:
-[Short statement about salary legality]
-
-MISSING REQUIREMENTS:
-- [item 1]
-- [item 2]
-
-FINAL CONCLUSION:
-[One clear final decision with justification]
-
-IMPORTANT RULES: Keep output concise and suitable for official use. Use simple professional language. Do not include unnecessary explanations. Be strict analytical and evidence based. Do not assume authenticity without strong supporting indicators.`
-
-const FindingIcon = ({ type }) => {
-  if (type === 'danger') return <XCircle size={15} color="var(--danger)" />
-  if (type === 'warning') return <AlertTriangle size={15} color="var(--warning)" />
-  if (type === 'success') return <CheckCircle size={15} color="var(--success)" />
-  return <Info size={15} color="var(--info)" />
-}
+const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
+const STATUS_OPTIONS = ['new','pending','progress','suspicious','manipulated','done']
 
 export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [caseData, setCaseData] = useState(null)
-  const [tab, setTab] = useState('analysis')
-  const [analyzing, setAnalyzing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [files, setFiles] = useState([])
+  const [receiptUploading, setReceiptUploading] = useState(false)
   const [reportText, setReportText] = useState('')
   const [editingReport, setEditingReport] = useState(false)
-  const [approved, setApproved] = useState(false)
-  const [savingDrive, setSavingDrive] = useState(false)
-  const [receiptUploading, setReceiptUploading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [editingCase, setEditingCase] = useState(false)
-  const [editData, setEditData] = useState({})
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
-  const [reportFile, setReportFile] = useState(null)
   const [sentLog, setSentLog] = useState({})
-  const [allCaseIds, setAllCaseIds] = useState([])
-  const [allCaseNames, setAllCaseNames] = useState({})
+  const [editingCase, setEditingCase] = useState(false)
+  const [editData, setEditData] = useState({})
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadCase()
-    // Load all case IDs for navigation
-    supabase.from('cases').select('id,client_name,case_id').order('created_at',{ascending:false}).then(({data})=>{
-      if(data) {
-        setAllCaseIds(data.map(c=>String(c.id)))
-        const names = {}
-        data.forEach(c=>{ names[String(c.id)] = `${c.client_name} · ${c.case_id}` })
-        setAllCaseNames(names)
-      }
-    })
-    // Load sent log from localStorage
     const saved = localStorage.getItem('sentLog_'+id)
-    if(saved) setSentLog(JSON.parse(saved))
+    if (saved) setSentLog(JSON.parse(saved))
   }, [id])
 
   const loadCase = async () => {
@@ -102,85 +35,47 @@ export default function CaseDetail() {
     if (data) {
       setCaseData(data)
       if (data.report_text) setReportText(data.report_text)
-      if (data.report_text) setApproved(true)
       if (data.notes) setNotes(data.notes)
-      setEditData({ client_name: data.client_name, client_phone: data.client_phone || '', client_email: data.client_email || '', country: data.country, doc_type: data.doc_type, amount: data.amount })
+      setEditData({ client_name:data.client_name, client_phone:data.client_phone||'', client_email:data.client_email||'', country:data.country, doc_type:data.doc_type, amount:data.amount, status:data.status||'new', verdict:data.verdict||'' })
     }
   }
 
-  const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(''), 3000) }
-  const showError = (msg) => { setError(msg); setTimeout(() => setError(''), 4000) }
+  const showSuccess = (msg) => { setSuccess(msg); setTimeout(()=>setSuccess(''),3000) }
+  const showError = (msg) => { setError(msg); setTimeout(()=>setError(''),4000) }
 
+  // ── File upload ──
   const handleFileUpload = async (e) => {
-    const newFiles = Array.from(e.target.files)
-    if (!newFiles.length) return
+    const uploadedFiles = Array.from(e.target.files)
+    if (!uploadedFiles.length) return
     setUploading(true)
-    try {
-      const uploaded = []
-      for (const file of newFiles) {
-        const path = `cases/${id}/${Date.now()}_${file.name}`
-        const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
-        if (!error) {
-          const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
-          uploaded.push({ name: file.name, url: urlData.publicUrl, path, file })
-        }
-      }
-      const allFiles = [...files, ...uploaded]
-      setFiles(allFiles)
-      await updateCase(id, { documents: allFiles.map(f => ({ name: f.name, url: f.url, path: f.path })) })
-      showSuccess('Documents uploaded successfully')
-      // Auto-trigger analysis
-      // files uploaded — staff will generate report manually
-    } catch (err) {
-      showError('Upload failed. Please try again.')
-    }
+    const newFiles = uploadedFiles.map(f => ({ name:f.name, size:f.size, type:f.type }))
+    setFiles(prev => [...prev, ...newFiles])
     setUploading(false)
+    showSuccess(`${uploadedFiles.length} file(s) added`)
   }
 
+  // ── Receipt upload ──
   const handleReceiptUpload = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     setReceiptUploading(true)
-    try {
-      const path = `cases/${id}/receipt_${Date.now()}_${file.name}`
-      const { error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
-      if (!error) {
-        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
-        await updateCase(id, { receipt_url: urlData.publicUrl, payment_status: 'received' })
-        setCaseData(prev => ({ ...prev, receipt_url: urlData.publicUrl, payment_status: 'received' }))
-        showSuccess('Payment receipt saved')
-      }
-    } catch (err) {
-      showError('Receipt upload failed')
-    }
+    await updateCase(id, { payment_status:'received' })
+    await loadCase()
     setReceiptUploading(false)
+    showSuccess('Payment receipt saved')
   }
 
-  const markSent = (action) => {
-    const updated = { ...sentLog, [action]: new Date().toLocaleString('en-GB') }
-    setSentLog(updated)
-    localStorage.setItem('sentLog_'+id, JSON.stringify(updated))
-    // Also log to comms_log
-    supabase.from('comms_log').insert([{
-      case_id: id,
-      client_name: caseData?.client_name,
-      client_phone: caseData?.client_phone,
-      channel: 'WhatsApp',
-      direction: 'outbound',
-      outcome: 'Sent',
-      notes: action,
-      date: new Date().toISOString(),
-      created_at: new Date().toISOString()
-    }])
+  // ── Save report ──
+  const saveReport = async () => {
+    setSaving(true)
+    await updateCase(id, { report_text: reportText, verdict: editData.verdict })
+    await loadCase()
+    setEditingReport(false)
+    setSaving(false)
+    showSuccess('Report saved')
   }
 
-  const saveEditCase = async () => {
-    await updateCase(id, editData)
-    setCaseData(prev => ({ ...prev, ...editData }))
-    setEditingCase(false)
-    showSuccess('Case updated')
-  }
-
+  // ── Save notes ──
   const saveNotes = async () => {
     setSavingNotes(true)
     await updateCase(id, { notes })
@@ -188,574 +83,260 @@ export default function CaseDetail() {
     showSuccess('Notes saved')
   }
 
-  const handleReportFileUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setReportFile(file)
-    showSuccess(`Report file selected: ${file.name}`)
+  // ── Save case edits ──
+  const saveEditCase = async () => {
+    await updateCase(id, editData)
+    await loadCase()
+    setEditingCase(false)
+    showSuccess('Case updated')
   }
 
-  const runAnalysis = async (uploadedFiles) => {
-    let settings = JSON.parse(localStorage.getItem('vvc_settings') || '{}')
-    let claudeKey = settings.claude_api_key || ''
-    if (!claudeKey) {
-      try {
-        const { data } = await supabase.from('settings').select('claude_api_key').eq('id', 1).single()
-        if (data?.claude_api_key) {
-          claudeKey = data.claude_api_key
-          localStorage.setItem('vvc_settings', JSON.stringify({ ...settings, claude_api_key: claudeKey }))
-        }
-      } catch (e) {}
-    }
-    if (!claudeKey) {
-      showError('Claude API key not set. Go to Settings and add your Claude API key.')
-      return
-    }
-    setAnalyzing(true)
-    setTab('analysis')
-    try {
-      const filesToAnalyse = uploadedFiles || files
-      const fileDescriptions = filesToAnalyse.map(f => f.name).join(', ')
-      const c = caseData
-      const userPrompt = `${GEMINI_PROMPT}
-
-Now analyze the following case:
-Case ID: ${c?.case_id || id}
-Client: ${c?.client_name || 'Unknown'}
-Country: ${c?.country || 'Unknown'}
-Document Type: ${c?.doc_type || 'Unknown'}
-Uploaded Documents: ${fileDescriptions}
-Date: ${new Date().toLocaleDateString('en-GB')}
-
-Please analyze these documents and generate the full verification report.`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          messages: [{ role: 'user', content: userPrompt }]
-        })
-      })
-      const data = await response.json()
-      if (data?.error) {
-        showError(`Claude error: ${data.error.message}`)
-        setAnalyzing(false)
-        return
-      }
-      const reportContent = data?.content?.[0]?.text || 'Analysis failed. Please try again.'
-      setReportText(reportContent)
-      const verdict = reportContent.includes('FRAUDULENT') ? 'CONFIRMED FRAUDULENT'
-        : reportContent.includes('SUSPICIOUS') ? 'SUSPICIOUS'
-        : reportContent.includes('GENUINE') ? 'GENUINE' : 'UNABLE TO VERIFY'
-      const status = verdict === 'GENUINE' ? 'progress' : 'suspicious'
-      await updateCase(id, { report_text: reportContent, verdict, status })
-      setCaseData(prev => ({ ...prev, report_text: reportContent, verdict, status }))
-      setTab('report')
-      showSuccess('Analysis complete — report generated')
-    } catch (err) {
-      showError('Gemini analysis failed. Check your API key in Settings.')
-    }
-    setAnalyzing(false)
+  // ── Mark sent ──
+  const markSent = (action) => {
+    const updated = { ...sentLog, [action]: new Date().toLocaleString('en-GB') }
+    setSentLog(updated)
+    localStorage.setItem('sentLog_'+id, JSON.stringify(updated))
+    supabase.from('comms_log').insert([{
+      case_id: id, client_name: caseData?.client_name, client_phone: caseData?.client_phone,
+      channel:'WhatsApp', direction:'outbound', outcome:'Sent', notes:action,
+      date: new Date().toISOString(), created_at: new Date().toISOString()
+    }])
+    showSuccess('Marked as sent ✓')
   }
 
-  const saveReport = async () => {
-    await updateCase(id, { report_text: reportText })
-    setEditingReport(false)
-    setApproved(true)
-    showSuccess('Report saved')
-  }
-
+  // ── Download PDF ──
   const downloadPDF = async () => {
     if (!reportText) { showError('No report to download yet.'); return }
     const { jsPDF } = await import('jspdf')
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
     const W = 210, pad = 18
-
-    // Header background
-    doc.setFillColor(15, 76, 129)
-    doc.rect(0, 0, W, 40, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
+    doc.setFillColor(15,76,129); doc.rect(0,0,W,40,'F')
+    doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
     doc.text('VISA VERIFICATION CENTER — VVC GLOBAL', pad, 15)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9); doc.setFont('helvetica','normal')
     doc.text('Document Intelligence Unit | Consumer Protection Advisory', pad, 22)
     doc.text('Dhaka, Bangladesh  |  vvcbd2026@gmail.com', pad, 29)
-    doc.text(`Case ID: ${caseData?.case_id || ''}  |  Date: ${new Date().toLocaleDateString('en-GB')}`, pad, 36)
-
-    // Gold divider line
-    doc.setDrawColor(212, 175, 55)
-    doc.setLineWidth(1)
-    doc.line(0, 40, W, 40)
-
-    // Case info box
-    doc.setFillColor(248, 250, 252)
-    doc.rect(pad, 45, W - pad*2, 22, 'F')
-    doc.setTextColor(40, 40, 40)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('CLIENT:', pad+3, 53)
-    doc.text('COUNTRY:', pad+3, 60)
-    doc.setFont('helvetica', 'normal')
-    doc.text(caseData?.client_name || '—', pad+22, 53)
-    doc.text(`${caseData?.country || '—'}  |  ${caseData?.doc_type || '—'}`, pad+22, 60)
-
-    // Report body
-    doc.setFontSize(9.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 30, 30)
-    const lines = doc.splitTextToSize(reportText, W - pad*2)
+    doc.text(`Case ID: ${caseData?.case_id||''}  |  Date: ${new Date().toLocaleDateString('en-GB')}`, pad, 36)
+    doc.setDrawColor(212,175,55); doc.setLineWidth(1); doc.line(0,40,W,40)
+    doc.setFillColor(248,250,252); doc.rect(pad,45,W-pad*2,22,'F')
+    doc.setTextColor(40,40,40); doc.setFontSize(9); doc.setFont('helvetica','bold')
+    doc.text('CLIENT:', pad+3, 53); doc.text('COUNTRY:', pad+3, 60)
+    doc.setFont('helvetica','normal')
+    doc.text(caseData?.client_name||'—', pad+22, 53)
+    doc.text(`${caseData?.country||'—'}  |  ${caseData?.doc_type||'—'}`, pad+22, 60)
+    doc.setFontSize(9.5); doc.setFont('helvetica','normal'); doc.setTextColor(30,30,30)
+    const lines = doc.splitTextToSize(reportText, W-pad*2)
     let y = 74
     lines.forEach(line => {
-      if (y > 268) {
-        doc.addPage()
-        doc.setFillColor(15, 76, 129)
-        doc.rect(0, 0, W, 12, 'F')
-        doc.setTextColor(255,255,255)
-        doc.setFontSize(8)
-        doc.text('VVC GLOBAL — Confidential Document Intelligence Report', pad, 8)
-        y = 20
-        doc.setTextColor(30, 30, 30)
-        doc.setFontSize(9.5)
-      }
-      doc.text(line, pad, y)
-      y += 5.5
+      if (y > 268) { doc.addPage(); y = 20 }
+      doc.text(line, pad, y); y += 5.5
     })
-
-    // Footer
     const pages = doc.getNumberOfPages()
-    for (let i = 1; i <= pages; i++) {
-      doc.setPage(i)
-      doc.setFillColor(15, 76, 129)
-      doc.rect(0, 282, W, 15, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(7.5)
-      doc.text('CONFIDENTIAL — This report is prepared exclusively for the client named above by VVC Global, Document Intelligence Unit.', pad, 288)
-      doc.text(`Page ${i} of ${pages}  |  VVC Global  |  vvcbd2026@gmail.com`, W - pad, 293, { align: 'right' })
+    for (let i=1;i<=pages;i++) {
+      doc.setPage(i); doc.setFillColor(15,76,129); doc.rect(0,282,W,15,'F')
+      doc.setTextColor(255,255,255); doc.setFontSize(7.5)
+      doc.text('CONFIDENTIAL — VVC Global, Document Intelligence Unit', pad, 288)
+      doc.text(`Page ${i} of ${pages}`, W-pad, 293, {align:'right'})
     }
-
-    const fileName = `VVC-Report-${caseData?.case_id || id}.pdf`
-    doc.save(fileName)
-    showSuccess(`Report downloaded: ${fileName}`)
+    doc.save(`VVC-Report-${caseData?.case_id||id}.pdf`)
+    showSuccess('PDF downloaded')
   }
 
-  const FACEBOOK_REVIEW_LINK = 'https://www.facebook.com/share/p/1FeoDDYg1D/'
-  const FACEBOOK_PAGE_LINK = 'https://www.facebook.com/profile.php?id=61550875727805'
-
-  const waReviewMessage = (name) =>
-    `আসসালামু আলাইকুম ${name}! 🙏\n\nআপনার ভিসা যাচাই সেবা সম্পন্ন হয়েছে। আপনার মতামত আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ।\n\n⭐ আমাদের একটি রিভিউ দিন:\n${FACEBOOK_REVIEW_LINK}\n\n📌 আমাদের পেজ ফলো করুন:\n${FACEBOOK_PAGE_LINK}\n\nধন্যবাদ\nVVC Global`
-
-  if (!caseData) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Loading case...</div>
-
+  if (!caseData) return <div style={{padding:20,textAlign:'center',color:'var(--text3)'}}>Loading case...</div>
   const c = caseData
-  const waReportLink = buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict || 'See attached report'))
+  const waReportLink = buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict||'See attached report'))
   const waConfirmLink = buildWhatsAppLink(c.client_phone, waPaymentConfirm(c.client_name, c.case_id))
-  const waReviewLink = buildWhatsAppLink(c.client_phone, waReviewMessage(c.client_name))
+  const waReviewMsg = `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআশা করি আমাদের ডকুমেন্ট যাচাই সেবা আপনার কাজে এসেছে।\n\nআপনার একটি রিভিউ আমাদের অনেক সাহায্য করবে। 🌟\n\n👉 https://www.facebook.com/VisaVerificationCenter\n\nধন্যবাদ\nVVC Global`
+  const waReviewLink = buildWhatsAppLink(c.client_phone, waReviewMsg)
+  const waTranslatorLink = buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআপনার VVC রিপোর্টটি বাংলায় পড়তে Google Translate ব্যবহার করুন:\n\n👉 https://play.google.com/store/apps/details?id=com.google.android.apps.translate\n\nঅ্যাপ ওপেন করে Documents অপশন সিলেক্ট করুন → PDF আপলোড করুন → English থেকে Bangla তে অনুবাদ করুন।\n\nধন্যবাদ\nVVC Global`)
+  const waAdvisoryLink = buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏\n\nআপনার জন্য VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা পাঠানো হলো।\n\nঅনুগ্রহ করে সংযুক্ত PDF ফাইলটি ডাউনলোড করুন এবং বিস্তারিত পড়ুন।\n\nধন্যবাদ\nVVC Global — Document Intelligence Unit`)
+
+  const WA_ACTIONS = [
+    { key:'payment_confirm', label:'Payment confirmation', sub:'Notify client payment received', link:waConfirmLink },
+    { key:'report_sent', label:'Send report', sub:'Open WhatsApp → attach PDF → send', link:waReportLink },
+    { key:'translator', label:'Send translator guide', sub:'How to read report in Bengali', link:waTranslatorLink },
+    { key:'advisory', label:'Send client advisory', sub:'Client protection guidelines', link:waAdvisoryLink },
+    { key:'review', label:'Request review', sub:'Ask for Facebook review', link:waReviewLink },
+  ]
 
   return (
     <div>
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: 'var(--danger)', display: 'flex', gap: 8 }}><AlertTriangle size={15} />{error}</div>}
-      {success && <div style={{ background: 'var(--success-bg)', border: '1px solid #A7F3D0', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: 'var(--success)', display: 'flex', gap: 8 }}><CheckCircle size={15} />{success}</div>}
+      {error && <div style={{background:'#FEE2E2',border:'1px solid #FECACA',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:13,color:'#DC2626',display:'flex',gap:8}}><AlertTriangle size={15}/>{error}</div>}
+      {success && <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:13,color:'var(--success)',display:'flex',gap:8}}><CheckCircle size={15}/>{success}</div>}
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <button className="btn btn-icon" onClick={() => navigate('/cases')}><ChevronLeft size={18} /></button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{c.client_name}</div>
-          <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>{c.case_id} · {c.country} · {c.doc_type}</div>
+      {/* Case header */}
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,flexWrap:'wrap'}}>
+        <button className="btn btn-icon" onClick={()=>navigate('/cases')}><ChevronLeft size={18}/></button>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:15}}>{c.client_name}</div>
+          <div style={{fontSize:12,color:'var(--text3)'}}>{c.case_id} · {c.country} · {c.doc_type}</div>
         </div>
-        <span className={`badge ${c.status || 'new'}`}>{c.status || 'new'}</span>
-        <button className="btn btn-sm" onClick={() => setEditingCase(true)} style={{padding:'5px 10px'}}><Edit2 size={13} /></button>
+        <select value={editData.status||c.status||'new'} onChange={async e=>{setEditData(d=>({...d,status:e.target.value}));await updateCase(id,{status:e.target.value});showSuccess('Status updated')}}
+          style={{fontSize:12,fontWeight:600,padding:'5px 10px',borderRadius:20,border:'2px solid var(--navy)',color:'var(--navy)',cursor:'pointer',background:'#fff'}}>
+          {STATUS_OPTIONS.map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}
+        </select>
+        <button className="btn btn-sm" onClick={()=>setEditingCase(true)} style={{flexShrink:0}}><Edit2 size={13}/> Edit</button>
       </div>
 
+      {/* Edit case modal */}
       {editingCase && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div style={{ background:'#fff', borderRadius:12, padding:24, maxWidth:340, width:'100%' }}>
-            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Edit Case</div>
-            <div className="form-group"><label className="form-label">Client name</label><input className="form-input" value={editData.client_name||''} onChange={e=>setEditData(d=>({...d,client_name:e.target.value}))} /></div>
-            <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={editData.client_phone||''} onChange={e=>setEditData(d=>({...d,client_phone:e.target.value}))} /></div>
-            <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" placeholder="client@email.com" value={editData.client_email||''} onChange={e=>setEditData(d=>({...d,client_email:e.target.value}))} /></div>
-            <div className="form-group"><label className="form-label">Country</label><input className="form-input" value={editData.country||''} onChange={e=>setEditData(d=>({...d,country:e.target.value}))} /></div>
-            <div className="form-group"><label className="form-label">Document type</label><input className="form-input" value={editData.doc_type||''} onChange={e=>setEditData(d=>({...d,doc_type:e.target.value}))} /></div>
-            <div className="form-group"><label className="form-label">Amount (৳)</label><input className="form-input" type="number" value={editData.amount||''} onChange={e=>setEditData(d=>({...d,amount:e.target.value}))} /></div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
-              <button className="btn btn-full" onClick={() => setEditingCase(false)}>Cancel</button>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:12,padding:24,maxWidth:380,width:'100%'}}>
+            <div style={{fontWeight:700,fontSize:15,marginBottom:16}}>Edit Case</div>
+            {[{k:'client_name',l:'Client name'},{k:'client_phone',l:'Phone'},{k:'client_email',l:'Email'},{k:'country',l:'Country'},{k:'doc_type',l:'Document type'},{k:'amount',l:'Amount (৳)'},{k:'verdict',l:'Verdict'}].map(({k,l})=>(
+              <div key={k} className="form-group"><label className="form-label">{l}</label>
+                <input className="form-input" value={editData[k]||''} onChange={e=>setEditData(d=>({...d,[k]:e.target.value}))}/>
+              </div>
+            ))}
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <button className="btn btn-full" onClick={()=>setEditingCase(false)}>Cancel</button>
               <button className="btn btn-primary btn-full" onClick={saveEditCase}>Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="tabs">
-        {[
-          { key:'analysis', label:'Analysis' },
-          { key:'report', label:'Report' },
-          { key:'notes', label:'Notes' },
-          { key:'actions', label:'Actions' },
-        ].map(t => (
-          <button key={t.key} className={`tab-btn ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
-            {t.label}
-            {t.key === 'report' && reportText && <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />}
-            {t.key === 'notes' && notes && <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)', display: 'inline-block' }} />}
-          </button>
-        ))}
+      {/* ── SECTION 1: Upload client documents ── */}
+      <div className="card mb-12">
+        <div className="card-header"><Upload size={14}/> Step 1 — Client documents received</div>
+        <div className="card-body">
+          <label className="upload-zone" style={{cursor:uploading?'wait':'pointer',marginBottom:8}}>
+            <Upload size={18} style={{margin:'0 auto 4px',display:'block'}}/>
+            <p style={{fontSize:12.5}}>{uploading?'Adding...':'Tap to upload PDFs or images'}</p>
+            <span style={{fontSize:11.5,color:'var(--text3)'}}>Visa · permit · contract · passport · offer letter</span>
+            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:'none'}} onChange={handleFileUpload} disabled={uploading}/>
+          </label>
+          {files.map((f,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderTop:'1px solid var(--border)',fontSize:12.5}}>
+              <FileText size={13} color="var(--info)"/>
+              <span style={{flex:1}}>{f.name}</span>
+              <CheckCircle size={13} color="var(--success)"/>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ANALYSIS TAB */}
-      {tab === 'analysis' && (
-        <div>
-          <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, color: 'var(--text2)', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Info size={14} />
-            <span>Upload client documents below. Download the completed report and upload it in the Report tab.</span>
-          </div>
-
-          {/* Upload */}
-          <div className="card mb-12">
-            <div className="card-header">Upload documents</div>
-            <div className="card-body">
-              <label className="upload-zone" style={{ cursor: uploading ? 'wait' : 'pointer' }}>
-                <Upload size={22} style={{ margin: '0 auto 6px', display: 'block' }} />
-                <p style={{ fontSize: 13 }}>{uploading ? 'Uploading...' : 'Tap to upload PDFs or images'}</p>
-                <span style={{ fontSize: 11.5, color: 'var(--text3)' }}>Visa · permit · contract · passport · offer letter</span>
-                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={handleFileUpload} disabled={uploading} />
-              </label>
-              {files.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  {files.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 12.5 }}>
-                      <FileText size={14} color="var(--info)" />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                      <CheckCircle size={13} color="var(--success)" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Payment receipt */}
-          <div className="card mb-12">
-            <div className="card-header">
-              Payment receipt
-              {c.payment_status === 'received' && <span className="badge done">Received ✓</span>}
-            </div>
-            <div className="card-body">
-              <label className="upload-zone" style={{ padding: '14px', cursor: receiptUploading ? 'wait' : 'pointer' }}>
-                <Upload size={18} style={{ margin: '0 auto 4px', display: 'block' }} />
-                <p style={{ fontSize: 12.5 }}>{receiptUploading ? 'Saving...' : 'Upload bKash/Nagad screenshot'}</p>
-                <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }} onChange={handleReceiptUpload} disabled={receiptUploading} />
-              </label>
-              {c.receipt_url && (
-                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--success)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <CheckCircle size={13} /> Payment receipt saved in system
-                </div>
-              )}
-            </div>
-          </div>
-
-
+      {/* ── SECTION 2: Payment receipt ── */}
+      <div className="card mb-12">
+        <div className="card-header">
+          💳 Step 2 — Payment receipt
+          {c.payment_status==='received' && <span className="badge done">Received ✓</span>}
         </div>
-      )}
+        <div className="card-body">
+          <label className="upload-zone" style={{cursor:receiptUploading?'wait':'pointer'}}>
+            <Upload size={18} style={{margin:'0 auto 4px',display:'block'}}/>
+            <p style={{fontSize:12.5}}>{receiptUploading?'Saving...':'Upload bKash/Nagad screenshot'}</p>
+            <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{display:'none'}} onChange={handleReceiptUpload} disabled={receiptUploading}/>
+          </label>
+          {c.payment_status==='received' && <div style={{marginTop:8,fontSize:12,color:'var(--success)',display:'flex',gap:6,alignItems:'center'}}><CheckCircle size={13}/>Payment receipt saved</div>}
+        </div>
+      </div>
 
-      {/* REPORT TAB */}
-      {tab === 'report' && (
-        <div>
-          {!reportText ? (
-            <div className="empty-state">
-              <FileText size={32} />
-              <h3>No report yet</h3>
-              <p>Upload documents in the Analysis tab to generate the report</p>
+      {/* ── SECTION 3: Report ── */}
+      <div className="card mb-12">
+        <div className="card-header"><FileText size={14}/> Step 3 — VVC Report</div>
+        <div className="card-body">
+          {!reportText && !editingReport ? (
+            <div>
+              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Paste or type the VVC report here after completing your analysis.</div>
+              <button className="btn btn-primary btn-full" onClick={()=>setEditingReport(true)}>+ Add report</button>
             </div>
           ) : (
             <div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                {!editingReport ? (
-                  <button className="btn" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setEditingReport(true)}>
-                    <Edit2 size={14} /> Edit report
-                  </button>
-                ) : (
-                  <button className="btn btn-success" style={{ flex: 1, justifyContent: 'center' }} onClick={saveReport}>
-                    <Save size={14} /> Save changes
-                  </button>
-                )}
-                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={downloadPDF}>
-                  <Download size={14} /> Download PDF
-                </button>
-              </div>
-              <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12.5,color:'var(--success)'}}>
-                📋 <strong>To send report to client:</strong> Download PDF → Go to Actions tab → Click "Send report" → WhatsApp opens → Attach the PDF → Send
-              </div>
-
               {editingReport ? (
-                <textarea
-                  value={reportText}
-                  onChange={e => setReportText(e.target.value)}
-                  style={{ width: '100%', minHeight: 400, padding: 12, border: '1px solid var(--navy)', borderRadius: 8, fontSize: 12.5, lineHeight: 1.7, fontFamily: 'monospace', resize: 'vertical' }}
-                />
-              ) : (
-                <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
-                  <div style={{ textAlign: 'center', borderBottom: '2px solid var(--navy)', paddingBottom: 12, marginBottom: 12 }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--navy)' }}>VISA VERIFICATION CENTER</div>
-                    <div style={{ fontSize: 11, color: 'var(--text2)' }}>Document Intelligence Unit | VVC Global</div>
+                <div>
+                  <textarea value={reportText} onChange={e=>setReportText(e.target.value)}
+                    style={{width:'100%',minHeight:300,padding:12,border:'1px solid var(--navy)',borderRadius:8,fontSize:12.5,lineHeight:1.7,fontFamily:'monospace',resize:'vertical',marginBottom:10}}
+                    placeholder="Paste your VVC report here..."/>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                    <button className="btn btn-full" onClick={()=>setEditingReport(false)}>Cancel</button>
+                    <button className="btn btn-primary btn-full" onClick={saveReport} disabled={saving}>{saving?'Saving...':'Save report'}</button>
                   </div>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, lineHeight: 1.8, fontFamily: '-apple-system, sans-serif', color: 'var(--text)' }}>{reportText}</pre>
+                </div>
+              ) : (
+                <div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                    <button className="btn btn-full" onClick={()=>setEditingReport(true)}><Edit2 size={13}/> Edit report</button>
+                    <button className="btn btn-primary btn-full" onClick={downloadPDF}><Download size={13}/> Download PDF</button>
+                  </div>
+                  <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'10px 14px',fontSize:12.5,color:'var(--success)',marginBottom:10}}>
+                    ✅ Report saved · Download PDF → Go to Actions → Send to client via WhatsApp
+                  </div>
+                  <div style={{background:'#fff',border:'1px solid var(--border)',borderRadius:8,padding:14,maxHeight:200,overflow:'auto'}}>
+                    <pre style={{whiteSpace:'pre-wrap',fontSize:11.5,lineHeight:1.7,fontFamily:'-apple-system,sans-serif',color:'var(--text)',margin:0}}>{reportText.slice(0,500)}{reportText.length>500?'...':''}</pre>
+                  </div>
                 </div>
               )}
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* NOTES TAB */}
-      {tab === 'notes' && (
-        <div>
-          {/* Notes & advice */}
-          <div className="card mb-12">
-            <div className="card-header">Case notes & advice</div>
-            <div className="card-body">
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Write your advice, observations, or notes about this case here..."
-                style={{ width:'100%', minHeight:180, padding:12, border:'1px solid var(--border)', borderRadius:8, fontSize:13, lineHeight:1.7, resize:'vertical', fontFamily:'-apple-system,sans-serif' }}
-              />
-              <button className="btn btn-primary btn-full" style={{marginTop:10, padding:11}} onClick={saveNotes} disabled={savingNotes}>
-                {savingNotes ? 'Saving...' : 'Save notes'}
-              </button>
+      {/* ── SECTION 4: Notes ── */}
+      <div className="card mb-12">
+        <div className="card-header">📝 Step 4 — Notes & advice for client</div>
+        <div className="card-body">
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)}
+            placeholder="Write your advice, observations, or notes about this case..."
+            style={{width:'100%',minHeight:120,padding:12,border:'1px solid var(--border)',borderRadius:8,fontSize:13,lineHeight:1.7,resize:'vertical',fontFamily:'-apple-system,sans-serif'}}/>
+          <button className="btn btn-primary btn-full" style={{marginTop:8}} onClick={saveNotes} disabled={savingNotes}>
+            {savingNotes?'Saving...':'Save notes'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── SECTION 5: WhatsApp Actions ── */}
+      <div className="card mb-12">
+        <div className="card-header">📱 Step 5 — Send to client via WhatsApp</div>
+        <div style={{background:'var(--surface2)',padding:'8px 14px',fontSize:12,color:'var(--text2)'}}>
+          Click <strong>Send</strong> → WhatsApp opens → attach file if needed → send → come back → tap <strong>✓ Sent</strong>
+        </div>
+        {WA_ACTIONS.map(action=>(
+          <div key={action.key} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderTop:'1px solid var(--border)'}}>
+            <MessageCircle size={16} color="#25D366" style={{flexShrink:0}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:600,fontSize:13}}>{action.label}</div>
+              <div style={{fontSize:11.5,color:'var(--text3)'}}>{action.sub}</div>
             </div>
-          </div>
-
-          {/* Send report via WhatsApp */}
-          <div className="card mb-12">
-            <div className="card-header">📤 Send report to client via WhatsApp</div>
-            <div className="card-body">
-              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:12}}>
-                Step 1 — Select your VVC report file below.<br/>
-                Step 2 — Tap "Open WhatsApp". WhatsApp will open with a pre-filled message.<br/>
-                Step 3 — Manually attach the report file and hit send.
-              </div>
-              <label className="upload-zone" style={{padding:14,cursor:'pointer',marginBottom:10}}>
-                <Upload size={18} style={{margin:'0 auto 4px',display:'block'}} />
-                <p style={{fontSize:12.5}}>{reportFile ? `✅ ${reportFile.name}` : 'Tap to select report file (PDF/DOCX)'}</p>
-                <input type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={handleReportFileUpload} />
-              </label>
-              <a href={buildWhatsAppLink(c.client_phone, waReportMessage(c.client_name, c.case_id, c.verdict || 'See attached report'))}
-                target="_blank" rel="noreferrer"
-                className={`btn btn-wa btn-full ${!c.client_phone ? 'disabled' : ''}`}
-                style={{justifyContent:'center', opacity: c.client_phone ? 1 : 0.5}}>
-                <MessageCircle size={14} /> Open WhatsApp → attach & send
-              </a>
-              {!c.client_phone && <div style={{fontSize:11.5,color:'var(--danger)',marginTop:6}}>⚠ No phone number on this case. Edit case to add phone.</div>}
-            </div>
-          </div>
-
-          {/* Client document upload area */}
-          <div className="card">
-            <div className="card-header">📁 Client documents received</div>
-            <div className="card-body">
-              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Upload documents received from client via WhatsApp for your records.</div>
-              <label className="upload-zone" style={{cursor: uploading ? 'wait' : 'pointer'}}>
-                <Upload size={18} style={{margin:'0 auto 4px',display:'block'}} />
-                <p style={{fontSize:12.5}}>{uploading ? 'Uploading...' : 'Tap to upload client documents'}</p>
-                <span style={{fontSize:11.5,color:'var(--text3)'}}>PDF · JPG · PNG</span>
-                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{display:'none'}} onChange={handleFileUpload} disabled={uploading} />
-              </label>
-              {files.length > 0 && (
-                <div style={{marginTop:10}}>
-                  {files.map((f,i) => (
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--border)',fontSize:12.5}}>
-                      <FileText size={14} color="var(--info)" />
-                      <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.name}</span>
-                      <CheckCircle size={13} color="var(--success)" />
-                    </div>
-                  ))}
-                </div>
+            <div style={{display:'flex',gap:6,flexShrink:0}}>
+              {sentLog[action.key] ? (
+                <span style={{fontSize:11.5,color:'var(--success)',fontWeight:600,display:'flex',alignItems:'center',gap:4}}><CheckCircle size={13}/>Sent</span>
+              ) : (
+                <>
+                  <a href={action.link} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
+                  <button className="btn btn-sm" style={{fontSize:11,padding:'4px 8px',color:'var(--success)',borderColor:'var(--success)'}} onClick={()=>markSent(action.key)}>✓ Sent</button>
+                </>
               )}
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* ── SECTION 6: Email Actions ── */}
+      <div className="card mb-12">
+        <div className="card-header">✉️ Email actions</div>
+        <div style={{padding:'10px 14px',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:'#EA4335',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'#fff',fontWeight:700,fontSize:12}}>G</span>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:600,fontSize:13}}>Send report via email</div>
+            <div style={{fontSize:11.5,color:'var(--text3)'}}>Opens Gmail · attach report · send</div>
+          </div>
+          <a href={`mailto:${c.client_email||''}?subject=VVC Report — ${c.case_id}&body=Dear ${c.client_name},%0A%0APlease find your document verification report attached.%0A%0ACase ID: ${c.case_id}%0A%0AThank you%0AVVC Global`}
+            className="btn btn-sm" style={{background:'#EA4335',color:'#fff',border:'none',flexShrink:0}}>Send</a>
         </div>
-      )}
+        {!c.client_email && <div style={{padding:'0 14px 10px',fontSize:11.5,color:'var(--text3)'}}>No email saved. Click Edit to add client email.</div>}
+      </div>
 
-
-
-
-
-      {/* ACTIONS TAB */}
-      {tab === 'actions' && (
-        <div>
-          {/* How it works note */}
-          <div style={{background:'var(--surface2)',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12,color:'var(--text2)'}}>
-            💡 Click <strong>Send</strong> → WhatsApp opens with message ready → attach file if needed → send → come back → click <strong>✓ Mark sent</strong>
-          </div>
-
-          <div className="card mb-12">
-            <div className="card-header">📱 WhatsApp actions</div>
-            <div style={{padding:'8px 0'}}>
-              {[
-                { key:'payment_confirm', label:'Payment confirmation', sub:'Notify client payment received', link: waConfirmLink },
-                { key:'report_sent', label:'Send report', sub:'Open WhatsApp → attach PDF → send', link: waReportLink },
-                { key:'translator', label:'Send translator guide', sub:'How to read report in Bengali', link: buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏
-
-আপনার VVC রিপোর্টটি বাংলায় পড়তে Google Translate ব্যবহার করুন:
-
-👉 ডাউনলোড করুন: https://play.google.com/store/apps/details?id=com.google.android.apps.translate
-
-অ্যাপ ওপেন করে Documents অপশন সিলেক্ট করুন → PDF আপলোড করুন → English থেকে Bangla তে অনুবাদ করুন।
-
-ধন্যবাদ
-VVC Global`) },
-                { key:'advisory', label:'Send client advisory', sub:'Client protection guidelines PDF', link: buildWhatsAppLink(c.client_phone, `আসসালামু আলাইকুম ${c.client_name}! 🙏
-
-আপনার জন্য VVC Global-এর ক্লায়েন্ট সুরক্ষা নির্দেশিকা পাঠানো হলো।
-
-অনুগ্রহ করে সংযুক্ত PDF ফাইলটি ডাউনলোড করুন এবং বিস্তারিত পড়ুন।
-
-ধন্যবাদ
-VVC Global — Document Intelligence Unit`) },
-                { key:'review', label:'Request review', sub:'Ask for Facebook review', link: waReviewLink },
-              ].map(action => (
-                <div key={action.key} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'1px solid var(--border)'}}>
-                  <MessageCircle size={16} color="#25D366" style={{flexShrink:0}}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600,fontSize:13}}>{action.label}</div>
-                    <div style={{fontSize:11.5,color:'var(--text3)'}}>{action.sub}</div>
-                  </div>
-                  <div style={{display:'flex',gap:6,flexShrink:0}}>
-                    {sentLog[action.key] ? (
-                      <span style={{fontSize:11.5,color:'var(--success)',fontWeight:600,display:'flex',alignItems:'center',gap:4}}>
-                        <CheckCircle size={13}/> Sent
-                      </span>
-                    ) : (
-                      <>
-                        <a href={action.link} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm" onClick={()=>{}}>Send</a>
-                        <button className="btn btn-sm" style={{fontSize:11,padding:'4px 8px',color:'var(--success)',borderColor:'var(--success)'}} onClick={()=>markSent(action.key)}>✓ Mark sent</button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Email actions */}
-          <div className="card mb-12">
-            <div className="card-header" style={{color:'var(--info)'}}>
-              ✉️ Email actions
-            </div>
-            <div style={{padding:'4px 0'}}>
-              <div className="wa-action" style={{margin:'10px 14px'}}>
-                <div style={{width:32,height:32,borderRadius:'50%',background:'#EA4335',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <span style={{color:'#fff',fontSize:13,fontWeight:700}}>G</span>
-                </div>
-                <div className="wa-action-text">
-                  <strong>Send report via email</strong>
-                  <span>Opens Gmail · attach report · send</span>
-                </div>
-                <a href={`mailto:${c.client_email||''}?subject=VVC Report — ${c.case_id}&body=Dear ${c.client_name},%0A%0APlease find your document verification report attached.%0A%0ACase ID: ${c.case_id}%0AVerdict: ${c.verdict||'See attached report'}%0A%0AThank you%0AVVC Global — Visa Verification Center`}
-                  className="btn btn-sm" style={{background:'#EA4335',color:'#fff',border:'none',flexShrink:0}}>Send</a>
-              </div>
-              <div className="wa-action" style={{margin:'0 14px 10px'}}>
-                <div style={{width:32,height:32,borderRadius:'50%',background:'#EA4335',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <span style={{color:'#fff',fontSize:13,fontWeight:700}}>G</span>
-                </div>
-                <div className="wa-action-text">
-                  <strong>Send invoice via email</strong>
-                  <span>Opens Gmail with invoice details</span>
-                </div>
-                <a href={`mailto:${c.client_email||''}?subject=VVC Invoice — ${c.case_id}&body=Dear ${c.client_name},%0A%0AYour invoice for document verification service:%0A%0ACase ID: ${c.case_id}%0AAmount: ৳${c.amount}%0AService: ${c.doc_type} — ${c.country}%0A%0APlease make payment via bKash/Nagad.%0A%0AThank you%0AVVC Global`}
-                  className="btn btn-sm" style={{background:'#EA4335',color:'#fff',border:'none',flexShrink:0}}>Send</a>
-              </div>
-              <div style={{padding:'0 14px 10px',fontSize:11.5,color:'var(--text3)'}}>
-                Sending from: vvcbd2026@gmail.com · Add client email in Edit Case if missing.
-              </div>
-            </div>
-          </div>
-
-          {/* Facebook review */}
-          <div className="card mb-12">
-            <div className="card-header" style={{ color: '#1877F2' }}>
-              ⭐ Facebook review request
-            </div>
-            <div style={{ padding: '10px 14px' }}>
-              <div style={{ fontSize: 12.5, color: 'var(--text2)', marginBottom: 10 }}>
-                After delivering the report, ask the client for a Facebook review. If they don't review, send the reminder again.
-              </div>
-              <div className="wa-action" style={{ marginBottom: 8 }}>
-                <MessageCircle size={18} color="#25D366" style={{ flexShrink: 0 }} />
-                <div className="wa-action-text">
-                  <strong>Send review request</strong>
-                  <span>Includes review link + page link</span>
-                </div>
-                <a href={waReviewLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">Send</a>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <a href={FACEBOOK_REVIEW_LINK} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ flex: 1, justifyContent: 'center', background: '#1877F2', color: '#fff', border: 'none' }}>
-                  <ExternalLink size={12} /> Review link
-                </a>
-                <a href={FACEBOOK_PAGE_LINK} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                  <ExternalLink size={12} /> Our page
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Case status */}
-          <div className="card mb-12">
-            <div className="card-header">Case status</div>
-            <div style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['new', 'pending', 'progress', 'suspicious', 'manipulated', 'done'].map(s => (
-                <button key={s} onClick={async () => { await updateCase(id, { status: s }); setCaseData(d => ({ ...d, status: s })) }}
-                  style={{
-                    padding: '6px 12px', borderRadius: 20, border: '1px solid',
-                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    background: c.status === s ? 'var(--navy)' : '#fff',
-                    borderColor: c.status === s ? 'var(--navy)' : 'var(--border)',
-                    color: c.status === s ? '#fff' : 'var(--text2)',
-                  }}>{s}</button>
-              ))}
-            </div>
-          </div>
-
-          <button className="btn btn-danger btn-full" onClick={async () => { if(window.confirm('Delete this case?')) { await supabase.from('cases').delete().eq('id', id); navigate('/cases') } }}>
-            Delete case
-          </button>
+      {/* ── Facebook review ── */}
+      <div className="card mb-12">
+        <div className="card-header">⭐ Facebook review</div>
+        <div style={{padding:'10px 14px',display:'flex',gap:10}}>
+          <a href="https://www.facebook.com/VisaVerificationCenter" target="_blank" rel="noreferrer" className="btn btn-full" style={{flex:1,justifyContent:'center'}}>Our page</a>
+          <a href={waReviewLink} target="_blank" rel="noreferrer" className="btn btn-wa btn-full" style={{flex:1,justifyContent:'center'}}><MessageCircle size={13}/>Request review</a>
         </div>
-      )}
-      {/* Next / Previous case navigation */}
-      {/* Case navigation */}
-      {allCaseIds.length > 1 && (
-        <div style={{marginTop:16,marginBottom:8}}>
-          <div style={{fontSize:11.5,color:'var(--text2)',marginBottom:6,fontWeight:600}}>Jump to case:</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:8}}>
-            <select className="form-select" style={{fontSize:13}} onChange={e=>e.target.value&&navigate(`/cases/${e.target.value}`)} defaultValue="">
-              <option value="">— Select case —</option>
-              {allCaseIds.map((cId,i)=>(
-                <option key={cId} value={cId} selected={String(cId)===String(id)}>
-                  {allCaseNames[cId]||`Case ${i+1}`}
-                </option>
-              ))}
-            </select>
-            {(() => {
-              const idx = allCaseIds.findIndex(x=>String(x)===String(id))
-              const prev = idx > 0 ? allCaseIds[idx-1] : null
-              const next = idx !== -1 && idx < allCaseIds.length-1 ? allCaseIds[idx+1] : null
-              return (<>
-                <button className="btn btn-full" disabled={!prev} onClick={()=>prev&&navigate(`/cases/${prev}`)} style={{padding:'10px 14px'}}>← Prev</button>
-                <button className="btn btn-primary btn-full" disabled={!next} onClick={()=>next&&navigate(`/cases/${next}`)} style={{padding:'10px 14px'}}>Next →</button>
-              </>)
-            })()}
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
