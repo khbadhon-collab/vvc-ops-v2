@@ -319,7 +319,7 @@ export function Finance() {
     getExpenses().then(({ data }) => { if (data?.length) setExpenses(data) })
     // Load income from paid invoices
     getInvoices().then(({ data }) => {
-      if (data?.length) {
+      if (data) {
         setInvoices(data)
         const paidTotal = data.filter(i => i.status === 'paid').reduce((s,i) => s + i.amount, 0)
         setIncome(paidTotal)

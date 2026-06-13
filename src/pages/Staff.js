@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase, getCases } from '../lib/supabase'
 import { Edit2, Trash2, Target, Award, User, TrendingUp, Phone, MessageCircle } from 'lucide-react'
 
-const MONTHLY_TARGET = 150
+const MONTHLY_TARGET = 170
 const BONUS_PER_FILE = 50
 
 const LEAD_SOURCES = ['Facebook Ads','WhatsApp','Phone Call','Facebook Organic','Referral','Walk-in','Other']
@@ -31,7 +31,7 @@ export default function Staff() {
   const [roles, setRoles] = useState(DEFAULT_ROLES)
   const [form, setForm] = useState({
     name:'', role:'Sales Assistant', phone:'', email:'',
-    salary:0, commission_rate:0, join_date: new Date().toISOString().slice(0,10), staff_id:''
+    salary:0, commission_rate:100, friday_overtime_rate:0, join_date: new Date().toISOString().slice(0,10), staff_id:''
   })
 
   const now = new Date()
@@ -76,9 +76,9 @@ export default function Staff() {
     if (!form.name) return
     const staffId = form.staff_id || generateStaffId()
     if (editStaff) {
-      await supabase.from('staff').update({ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||0), staff_id:staffId }).eq('id',editStaff.id)
+      await supabase.from('staff').update({ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||100), friday_overtime_rate:Number(form.friday_overtime_rate||0), staff_id:staffId }).eq('id',editStaff.id)
     } else {
-      await supabase.from('staff').insert([{ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||0), staff_id:staffId, created_at:new Date().toISOString() }])
+      await supabase.from('staff').insert([{ ...form, salary:Number(form.salary), commission_rate:Number(form.commission_rate||100), friday_overtime_rate:Number(form.friday_overtime_rate||0), staff_id:staffId, created_at:new Date().toISOString() }])
     }
     await loadStaff()
     setAdding(false); setEditStaff(null)
@@ -87,7 +87,7 @@ export default function Staff() {
 
   const openEdit = (s) => {
     setEditStaff(s)
-    setForm({ name:s.name, role:s.role, phone:s.phone||'', email:s.email||'', salary:s.salary||0, commission_rate:s.commission_rate||0, join_date:s.join_date||'', staff_id:s.staff_id||'' })
+    setForm({ name:s.name, role:s.role, phone:s.phone||'', email:s.email||'', salary:s.salary||0, commission_rate:s.commission_rate||100, friday_overtime_rate:s.friday_overtime_rate||0, join_date:s.join_date||'', staff_id:s.staff_id||'' })
     setAdding(true); setTab('form')
   }
 
@@ -214,7 +214,15 @@ export default function Staff() {
             </div>
             <div className="form-row">
               <div className="form-group"><label className="form-label">Monthly salary (৳)</label><input className="form-input" type="number" value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))}/></div>
-              <div className="form-group"><label className="form-label">Commission per file (৳)</label><input className="form-input" type="number" placeholder="e.g. 100 = ৳100 per file completed" value={form.commission_rate||0} onChange={e=>setForm(f=>({...f,commission_rate:e.target.value}))}/></div>
+              <div className="form-group">
+                <label className="form-label">Commission per file (৳) — after {MONTHLY_TARGET} files/month</label>
+                <input className="form-input" type="number" placeholder="e.g. 100 = ৳100 per file above target" value={form.commission_rate||100} onChange={e=>setForm(f=>({...f,commission_rate:e.target.value}))}/>
+                <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>Commission only paid after {MONTHLY_TARGET} files completed in the month</div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Friday overtime rate (৳/hour)</label>
+                <input className="form-input" type="number" placeholder="e.g. 150 = ৳150 per hour on Friday" value={form.friday_overtime_rate||0} onChange={e=>setForm(f=>({...f,friday_overtime_rate:e.target.value}))}/>
+              </div>
               <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
             </div>
             <div className="form-row">
@@ -288,8 +296,14 @@ export default function Staff() {
                     <div style={{fontSize:10.5,color:'var(--text3)'}}>Bonus</div>
                   </div>
                   <div style={{textAlign:'center',padding:8}}>
-                    <div style={{fontSize:18,fontWeight:800,color:'var(--info)'}}>৳{(kpi.files * Number(s.commission_rate||0)).toLocaleString()}</div>
-                    <div style={{fontSize:10.5,color:'var(--text3)'}}>Commission (৳{s.commission_rate||0}/file)</div>
+                  {(() => {
+                      const commFiles = Math.max(0, kpi.files - MONTHLY_TARGET)
+                      const commAmount = commFiles * Number(s.commission_rate||100)
+                      return (<>
+                        <div style={{fontSize:18,fontWeight:800,color:commAmount>0?'var(--success)':'var(--text3)'}}>৳{commAmount.toLocaleString()}</div>
+                        <div style={{fontSize:10.5,color:'var(--text3)'}}>Commission ({commFiles} extra files × ৳{s.commission_rate||100})</div>
+                      </>)
+                    })()}
                   </div>
                 </div>
                 <div style={{padding:'0 16px 12px'}}>
@@ -311,6 +325,11 @@ export default function Staff() {
                       <div style={{fontWeight:700}}>{kpi.progress}%</div>
                     </div>
                   </div>
+                  {Number(s.friday_overtime_rate||0) > 0 && (
+                    <div style={{background:'#EFF6FF',borderRadius:8,padding:'8px 12px',marginBottom:8,fontSize:12}}>
+                      <span style={{fontWeight:600,color:'var(--info)'}}>Friday overtime rate:</span> ৳{s.friday_overtime_rate}/hour
+                    </div>
+                  )}
                   {!hasAssignedData && staff.length > 1 && (
                     <div style={{fontSize:11,color:'var(--warning)',marginBottom:8,padding:'6px 10px',background:'var(--warning-bg)',borderRadius:6}}>
                       ⚠ Cases not yet assigned to staff. Showing team total. Select "Handled by" when creating new cases to track per-staff.
