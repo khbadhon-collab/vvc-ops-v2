@@ -79,12 +79,18 @@ export default function CaseDetail() {
   const [reportFile, setReportFile] = useState(null)
   const [sentLog, setSentLog] = useState({})
   const [allCaseIds, setAllCaseIds] = useState([])
+  const [allCaseNames, setAllCaseNames] = useState({})
 
   useEffect(() => {
     loadCase()
     // Load all case IDs for navigation
-    supabase.from('cases').select('id').order('created_at',{ascending:false}).then(({data})=>{
-      if(data) setAllCaseIds(data.map(c=>String(c.id)))
+    supabase.from('cases').select('id,client_name,case_id').order('created_at',{ascending:false}).then(({data})=>{
+      if(data) {
+        setAllCaseIds(data.map(c=>String(c.id)))
+        const names = {}
+        data.forEach(c=>{ names[String(c.id)] = `${c.client_name} · ${c.case_id}` })
+        setAllCaseNames(names)
+      }
     })
     // Load sent log from localStorage
     const saved = localStorage.getItem('sentLog_'+id)
@@ -725,24 +731,31 @@ VVC Global — Document Intelligence Unit`) },
         </div>
       )}
       {/* Next / Previous case navigation */}
-      {/* Next / Previous case navigation */}
-      {(() => {
-        const currentIdx = allCaseIds.findIndex(x => String(x) === String(id) || Number(x) === Number(id))
-        const prevId = currentIdx > 0 ? allCaseIds[currentIdx - 1] : null
-        const nextId = currentIdx !== -1 && currentIdx < allCaseIds.length - 1 ? allCaseIds[currentIdx + 1] : null
-        return (
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:16,marginBottom:8}}>
-            <button className="btn btn-full" style={{padding:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
-              disabled={!prevId} onClick={()=>prevId&&navigate(`/cases/${prevId}`)}>
-              ← Previous case
-            </button>
-            <button className="btn btn-primary btn-full" style={{padding:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
-              disabled={!nextId} onClick={()=>nextId&&navigate(`/cases/${nextId}`)}>
-              Next case →
-            </button>
+      {/* Case navigation */}
+      {allCaseIds.length > 1 && (
+        <div style={{marginTop:16,marginBottom:8}}>
+          <div style={{fontSize:11.5,color:'var(--text2)',marginBottom:6,fontWeight:600}}>Jump to case:</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:8}}>
+            <select className="form-select" style={{fontSize:13}} onChange={e=>e.target.value&&navigate(`/cases/${e.target.value}`)} defaultValue="">
+              <option value="">— Select case —</option>
+              {allCaseIds.map((cId,i)=>(
+                <option key={cId} value={cId} selected={String(cId)===String(id)}>
+                  {allCaseNames[cId]||`Case ${i+1}`}
+                </option>
+              ))}
+            </select>
+            {(() => {
+              const idx = allCaseIds.findIndex(x=>String(x)===String(id))
+              const prev = idx > 0 ? allCaseIds[idx-1] : null
+              const next = idx !== -1 && idx < allCaseIds.length-1 ? allCaseIds[idx+1] : null
+              return (<>
+                <button className="btn btn-full" disabled={!prev} onClick={()=>prev&&navigate(`/cases/${prev}`)} style={{padding:'10px 14px'}}>← Prev</button>
+                <button className="btn btn-primary btn-full" disabled={!next} onClick={()=>next&&navigate(`/cases/${next}`)} style={{padding:'10px 14px'}}>Next →</button>
+              </>)
+            })()}
           </div>
-        )
-      })()}
+        </div>
+      )}
     </div>
   )
 }
