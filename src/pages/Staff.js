@@ -214,7 +214,7 @@ export default function Staff() {
             </div>
             <div className="form-row">
               <div className="form-group"><label className="form-label">Monthly salary (৳)</label><input className="form-input" type="number" value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))}/></div>
-              <div className="form-group"><label className="form-label">Sales commission (%)</label><input className="form-input" type="number" placeholder="e.g. 5 = 5% per case revenue" value={form.commission_rate||0} onChange={e=>setForm(f=>({...f,commission_rate:e.target.value}))}/></div>
+              <div className="form-group"><label className="form-label">Commission per file (৳)</label><input className="form-input" type="number" placeholder="e.g. 100 = ৳100 per file completed" value={form.commission_rate||0} onChange={e=>setForm(f=>({...f,commission_rate:e.target.value}))}/></div>
               <div className="form-group"><label className="form-label">Phone</label><input className="form-input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
             </div>
             <div className="form-row">
@@ -288,8 +288,8 @@ export default function Staff() {
                     <div style={{fontSize:10.5,color:'var(--text3)'}}>Bonus</div>
                   </div>
                   <div style={{textAlign:'center',padding:8}}>
-                    <div style={{fontSize:18,fontWeight:800,color:'var(--info)'}}>৳{Math.round(kpi.revenue*(Number(s.commission_rate||0)/100)).toLocaleString()}</div>
-                    <div style={{fontSize:10.5,color:'var(--text3)'}}>Commission ({s.commission_rate||0}%)</div>
+                    <div style={{fontSize:18,fontWeight:800,color:'var(--info)'}}>৳{(kpi.files * Number(s.commission_rate||0)).toLocaleString()}</div>
+                    <div style={{fontSize:10.5,color:'var(--text3)'}}>Commission (৳{s.commission_rate||0}/file)</div>
                   </div>
                 </div>
                 <div style={{padding:'0 16px 12px'}}>

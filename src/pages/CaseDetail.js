@@ -725,10 +725,11 @@ VVC Global — Document Intelligence Unit`) },
         </div>
       )}
       {/* Next / Previous case navigation */}
-      {allCaseIds.length > 1 && (() => {
-        const currentIdx = allCaseIds.indexOf(String(id))
+      {/* Next / Previous case navigation */}
+      {(() => {
+        const currentIdx = allCaseIds.findIndex(x => String(x) === String(id) || Number(x) === Number(id))
         const prevId = currentIdx > 0 ? allCaseIds[currentIdx - 1] : null
-        const nextId = currentIdx < allCaseIds.length - 1 ? allCaseIds[currentIdx + 1] : null
+        const nextId = currentIdx !== -1 && currentIdx < allCaseIds.length - 1 ? allCaseIds[currentIdx + 1] : null
         return (
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:16,marginBottom:8}}>
             <button className="btn btn-full" style={{padding:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}

@@ -153,9 +153,9 @@ export default function Templates() {
                 <div style={{fontWeight:700,fontSize:12.5,color:active?.key===t.key?'var(--navy)':'var(--text)'}}>{t.label}</div>
                 <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{t.desc}</div>
               </div>
-              <button onClick={e=>{e.stopPropagation();setEditBuiltin(t);setEditBuiltinBody(WA_TEMPLATES[t.key]?.toString()||'');setTab('editbuiltin')}}
-                style={{position:'absolute',top:8,right:8,background:'none',border:'none',cursor:'pointer',color:'var(--navy)',padding:3}}>
-                <Edit2 size={12}/>
+              <button onClick={e=>{e.stopPropagation();selectBuiltin(t)}}
+                style={{position:'absolute',top:8,right:8,background:'var(--navy)',border:'none',cursor:'pointer',color:'#fff',padding:'4px 8px',borderRadius:6,fontSize:11,fontWeight:600}}>
+                Use →
               </button>
             </div>
           ))}
