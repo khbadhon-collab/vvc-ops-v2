@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import React, { useState, useEffect } from 'react'
-import { getInvoices, markInvoicePaid, getExpenses, addExpense, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
+import { getInvoices, getCases, markInvoicePaid, getExpenses, addExpense, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
 import { CheckCircle, MessageCircle, Plus, Trash2, Edit2, Download } from 'lucide-react'
 
 // ── INVOICES ──
@@ -18,6 +18,40 @@ export function Invoices() {
   }
 
   useEffect(() => { loadInvoices() }, [])
+
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+
+  const syncInvoicesFromCases = async () => {
+    setSyncing(true)
+    setSyncMsg('')
+    try {
+      const { data: allCases } = await getCases()
+      const { data: allInvoices } = await getInvoices()
+      const existingRefs = new Set((allInvoices||[]).map(i => i.case_ref))
+      const missing = (allCases||[]).filter(c => c.case_id && !existingRefs.has(c.case_id))
+      let created = 0
+      for (const c of missing) {
+        const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Math.floor(1000+Math.random()*9000)) + created
+        await supabase.from('invoices').insert([{
+          case_ref: c.case_id,
+          client_name: c.client_name,
+          client_phone: c.client_phone,
+          amount: Number(c.amount)||0,
+          payment_method: c.payment_method || 'bKash Send Money',
+          status: c.payment_status==='received' ? 'paid' : 'unpaid',
+          invoice_number: invNum,
+          created_at: c.created_at || new Date().toISOString()
+        }])
+        created++
+      }
+      await loadInvoices()
+      setSyncMsg(created > 0 ? `✅ Created ${created} missing invoice(s) from existing cases.` : '✅ All cases already have invoices. Nothing to sync.')
+    } catch (e) {
+      setSyncMsg('❌ Sync failed: ' + e.message)
+    }
+    setSyncing(false)
+  }
 
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter)
   const paid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
@@ -242,10 +276,16 @@ export function Invoices() {
           </div>
         </div>
       ) : (
-        <button className="btn btn-primary btn-full mb-12" style={{padding:11}} onClick={()=>setAddingInv(true)}>
-          <Plus size={15}/> Add invoice manually
-        </button>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+          <button className="btn btn-primary btn-full" style={{padding:11}} onClick={()=>setAddingInv(true)}>
+            <Plus size={15}/> Add manually
+          </button>
+          <button className="btn btn-full" style={{padding:11}} onClick={syncInvoicesFromCases} disabled={syncing}>
+            {syncing ? 'Syncing...' : '🔄 Sync from cases'}
+          </button>
+        </div>
       )}
+      {syncMsg && <div style={{fontSize:12.5,padding:'8px 12px',borderRadius:8,background:'var(--surface2)',color:'var(--text2)',marginBottom:12}}>{syncMsg}</div>}
 
       <div className="card">
         {filtered.length === 0 && <div style={{padding:24,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet. Create a case to auto-generate, or add manually above.</div>}

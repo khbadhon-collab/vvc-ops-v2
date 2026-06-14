@@ -18,6 +18,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   const now = new Date()
+  const todayStr = now.toISOString().slice(0,10)
   const monthName = MONTHS[now.getMonth()]
   const year = now.getFullYear()
   const monthStart = new Date(year, now.getMonth(), 1).toISOString()
@@ -40,6 +41,7 @@ export default function Dashboard() {
   const pending = cases.filter(c => c.status === 'pending' || c.status === 'new').length
   const suspicious = cases.filter(c => c.status === 'suspicious' || c.status === 'manipulated').length
   const done = cases.filter(c => c.status === 'done').length
+  const completedToday = cases.filter(c => c.status === 'done' && (c.completed_at||'').slice(0,10) === todayStr).length
 
   // Income
   const thisMonthIncome = invoices.filter(i => i.status==='paid' && i.created_at >= monthStart).reduce((s,i)=>s+i.amount,0)
@@ -122,19 +124,52 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary metrics row */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:16}}>
         {[
           {label:'Pending',value:pending,color:'var(--warning)'},
           {label:'Suspicious',value:suspicious,color:'var(--danger)'},
           {label:'Delivered',value:done,color:'var(--success)'},
+          {label:'Done today',value:completedToday,color:completedToday>0?'var(--success)':'var(--text3)'},
           {label:'Net profit',value:`৳${netProfit.toLocaleString()}`,color:netProfit>=0?'var(--success)':'var(--danger)'},
         ].map(({label,value,color})=>(
-          <div key={label} style={{background:'#fff',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',textAlign:'center'}}>
-            <div style={{fontSize:10,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.4px',marginBottom:4}}>{label}</div>
-            <div style={{fontSize:17,fontWeight:700,color}}>{value}</div>
+          <div key={label} style={{background:'#fff',border:'1px solid var(--border)',borderRadius:8,padding:'10px 6px',textAlign:'center'}}>
+            <div style={{fontSize:9.5,color:'var(--text3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px',marginBottom:4}}>{label}</div>
+            <div style={{fontSize:15,fontWeight:700,color}}>{value}</div>
           </div>
         ))}
       </div>
+
+      {/* Daily completions - last 7 days */}
+      {(() => {
+        const last7 = Array.from({length:7}, (_,i) => {
+          const d = new Date()
+          d.setDate(d.getDate() - (6-i))
+          const dateStr = d.toISOString().slice(0,10)
+          const count = cases.filter(c => c.status==='done' && (c.completed_at||'').slice(0,10)===dateStr).length
+          return { label: d.toLocaleDateString('en-GB',{weekday:'short'}), date: dateStr, count }
+        })
+        const maxDay = Math.max(...last7.map(d=>d.count), 1)
+        const totalWeek = last7.reduce((s,d)=>s+d.count,0)
+        return (
+          <div className="card mb-16">
+            <div className="card-header">
+              <span style={{display:'flex',alignItems:'center',gap:6}}><FileCheck size={14}/> Daily completions</span>
+              <span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>{totalWeek} this week</span>
+            </div>
+            <div style={{padding:'12px 16px'}}>
+              <div style={{display:'flex',gap:6,alignItems:'flex-end',height:64}}>
+                {last7.map((d,i)=>(
+                  <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                    <div style={{fontSize:11,fontWeight:700,color:d.count>0?'var(--success)':'var(--text3)'}}>{d.count}</div>
+                    <div style={{width:'100%',background:d.count>0?'var(--success)':'var(--surface2)',borderRadius:3,height:`${Math.round(d.count/maxDay*40)+4}px`}}/>
+                    <div style={{fontSize:9.5,color:d.date===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.date===todayStr?700:400}}>{d.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 6-month trend */}
       <div className="card mb-16">

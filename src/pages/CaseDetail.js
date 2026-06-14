@@ -171,7 +171,14 @@ export default function CaseDetail() {
           <div style={{fontWeight:700,fontSize:15}}>{c.client_name}</div>
           <div style={{fontSize:12,color:'var(--text3)'}}>{c.case_id} · {c.country} · {c.doc_type}</div>
         </div>
-        <select value={editData.status||c.status||'new'} onChange={async e=>{setEditData(d=>({...d,status:e.target.value}));await updateCase(id,{status:e.target.value});showSuccess('Status updated')}}
+        <select value={editData.status||c.status||'new'} onChange={async e=>{
+          const newStatus = e.target.value
+          setEditData(d=>({...d,status:newStatus}))
+          const update = { status:newStatus }
+          if (newStatus === 'done') update.completed_at = new Date().toISOString()
+          await updateCase(id, update)
+          showSuccess('Status updated')
+        }}
           style={{fontSize:12,fontWeight:600,padding:'5px 10px',borderRadius:20,border:'2px solid var(--navy)',color:'var(--navy)',cursor:'pointer',background:'#fff'}}>
           {STATUS_OPTIONS.map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}
         </select>
