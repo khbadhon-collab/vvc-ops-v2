@@ -370,6 +370,25 @@ export function Finance() {
   const totalExp = expenses.reduce((s,e) => s + Number(e.amount), 0)
   const profit = income - totalExp
   const margin = income > 0 ? Math.round((profit / income) * 100) : 0
+  const outstanding = invoices.filter(i => i.status !== 'paid').reduce((s,i) => s + Number(i.amount||0), 0)
+
+  // Cashflow last 7 days
+  const cashflow7 = Array.from({length:7}, (_,i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6-i))
+    const dateStr = d.toISOString().slice(0,10)
+    const moneyIn = invoices.filter(inv => inv.status==='paid' && (inv.paid_at||inv.created_at||'').slice(0,10)===dateStr).reduce((s,inv)=>s+Number(inv.amount||0),0)
+    const moneyOut = expenses.filter(e => (e.date||e.created_at||'').slice(0,10)===dateStr).reduce((s,e)=>s+Number(e.amount||0),0)
+    return { label: d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}), dateStr, moneyIn, moneyOut }
+  })
+  const weekIn = cashflow7.reduce((s,d)=>s+d.moneyIn,0)
+  const weekOut = cashflow7.reduce((s,d)=>s+d.moneyOut,0)
+
+  // Recent transactions (combined income + expense, sorted by date desc)
+  const recentTx = [
+    ...invoices.filter(i=>i.status==='paid').map(i=>({type:'in', label:i.client_name, sub:i.invoice_number, amount:Number(i.amount||0), date:i.paid_at||i.created_at})),
+    ...expenses.map(e=>({type:'out', label:e.description, sub:e.category, amount:Number(e.amount||0), date:e.date||e.created_at}))
+  ].filter(t=>t.date).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8)
 
   const cats = {}
   expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
@@ -450,11 +469,81 @@ export function Finance() {
 
       {tab === 'summary' && (
         <div>
-          <div className="metrics-grid">
-            <div className="metric-card"><div className="metric-label">Income</div><div className="metric-value green">৳{income.toLocaleString()}</div></div>
-            <div className="metric-card"><div className="metric-label">Expenses</div><div className="metric-value red">৳{totalExp.toLocaleString()}</div></div>
-            <div className="metric-card"><div className="metric-label">Net profit</div><div className="metric-value blue">৳{profit.toLocaleString()}</div></div>
-            <div className="metric-card"><div className="metric-label">Margin</div><div className="metric-value">{income > 0 ? `${margin}%` : '—'}</div></div>
+          {/* Karbar-style colored summary cards */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            <div style={{background:'#FEF3E2',border:'1px solid #FDE4BC',borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:11.5,color:'#B45309',fontWeight:600,marginBottom:6}}>↓ To Receive</div>
+              <div style={{fontSize:20,fontWeight:800,color:'#B45309'}}>৳{outstanding.toLocaleString()}</div>
+            </div>
+            <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:11.5,color:'#15803D',fontWeight:600,marginBottom:6}}>↑ Total Income</div>
+              <div style={{fontSize:20,fontWeight:800,color:'#15803D'}}>৳{income.toLocaleString()}</div>
+            </div>
+            <div style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:11.5,color:'#B91C1C',fontWeight:600,marginBottom:6}}>↓ Total Expense</div>
+              <div style={{fontSize:20,fontWeight:800,color:'#B91C1C'}}>৳{totalExp.toLocaleString()}</div>
+            </div>
+            <div style={{background:profit>=0?'#EFF6FF':'#FEF2F2',border:`1px solid ${profit>=0?'#BFDBFE':'#FECACA'}`,borderRadius:10,padding:'14px 16px'}}>
+              <div style={{fontSize:11.5,color:profit>=0?'#1D4ED8':'#B91C1C',fontWeight:600,marginBottom:6}}>Net Profit</div>
+              <div style={{fontSize:20,fontWeight:800,color:profit>=0?'#1D4ED8':'#B91C1C'}}>৳{profit.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Cashflow chart - Karbar style */}
+          <div className="card mb-12">
+            <div className="card-header">Cashflow (Last 7 Days)</div>
+            <div style={{padding:'14px 16px'}}>
+              {(() => {
+                const maxVal = Math.max(...cashflow7.map(d=>Math.max(d.moneyIn,d.moneyOut)), 1000)
+                return (
+                  <div style={{display:'flex',gap:6,alignItems:'flex-end',height:120,marginBottom:8}}>
+                    {cashflow7.map((d,i)=>(
+                      <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                        <div style={{display:'flex',gap:2,alignItems:'flex-end',height:100,width:'100%',justifyContent:'center'}}>
+                          <div title={`In: ৳${d.moneyIn}`} style={{width:'40%',background:'var(--success)',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyIn/maxVal*100),d.moneyIn>0?4:0)}px`,minHeight:d.moneyIn>0?4:0}}/>
+                          <div title={`Out: ৳${d.moneyOut}`} style={{width:'40%',background:'var(--danger)',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyOut/maxVal*100),d.moneyOut>0?4:0)}px`,minHeight:d.moneyOut>0?4:0}}/>
+                        </div>
+                        <div style={{fontSize:9.5,color:'var(--text3)',marginTop:2}}>{d.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)',paddingTop:10}}>
+                <div>
+                  <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11.5,color:'var(--text2)'}}>
+                    <span style={{width:9,height:9,borderRadius:2,background:'var(--success)',display:'inline-block'}}/>Total Money In
+                  </div>
+                  <div style={{fontSize:16,fontWeight:800,color:'var(--success)'}}>৳{weekIn.toLocaleString()}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11.5,color:'var(--text2)',justifyContent:'flex-end'}}>
+                    <span style={{width:9,height:9,borderRadius:2,background:'var(--danger)',display:'inline-block'}}/>Total Money Out
+                  </div>
+                  <div style={{fontSize:16,fontWeight:800,color:'var(--danger)'}}>৳{weekOut.toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent transactions */}
+          <div className="card mb-12">
+            <div className="card-header">Recent Transactions</div>
+            {recentTx.length === 0 && <div style={{padding:'16px',textAlign:'center',color:'var(--text3)',fontSize:13}}>No transactions yet</div>}
+            {recentTx.map((t,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',borderTop:i>0?'1px solid var(--border)':'none'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:t.type==='in'?'#F0FDF4':'#FEF2F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:t.type==='in'?'var(--success)':'var(--danger)',fontWeight:700,fontSize:14}}>
+                  {t.type==='in'?'↓':'↑'}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{t.label}</div>
+                  <div style={{fontSize:11.5,color:'var(--text3)'}}>{t.sub} · {new Date(t.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div>
+                </div>
+                <div style={{fontWeight:700,fontSize:14,color:t.type==='in'?'var(--success)':'var(--danger)'}}>
+                  {t.type==='in'?'+':'-'}৳{t.amount.toLocaleString()}
+                </div>
+              </div>
+            ))}
           </div>
           <div className="card mb-12">
             <div className="card-header">Expenses by category</div>
