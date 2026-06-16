@@ -27,49 +27,60 @@ export function Invoices() {
 
   const syncInvoicesFromCases = async () => {
     setSyncing(true)
-    setSyncMsg('')
-    try {
-      const { data: allCases, error: cErr } = await getCases()
-      if (cErr) { setSyncMsg('❌ Cannot read cases: ' + cErr.message); setSyncing(false); return }
-      
-      const { data: allInvoices, error: iErr } = await getInvoices()
-      if (iErr) { setSyncMsg('❌ Cannot read invoices: ' + iErr.message); setSyncing(false); return }
-      
-      const existingRefs = new Set((allInvoices||[]).map(i => i.case_ref))
-      const missing = (allCases||[]).filter(c => c.case_id && !existingRefs.has(c.case_id))
-      
-      if (missing.length === 0) {
-        setSyncMsg(`✅ All ${(allCases||[]).length} cases already have invoices.`)
-        await loadInvoices()
-        setSyncing(false)
-        return
+    setSyncMsg('⏳ Reading cases...')
+    
+    // Step 1: read cases
+    const { data: allCases, error: cErr } = await getCases()
+    if (cErr) { setSyncMsg('❌ Step 1 failed - cannot read cases: ' + cErr.message); setSyncing(false); return }
+    setSyncMsg('⏳ Read ' + (allCases||[]).length + ' cases. Reading invoices...')
+    
+    // Step 2: read existing invoices
+    const { data: allInvoices, error: iErr } = await getInvoices()
+    if (iErr) { setSyncMsg('❌ Step 2 failed - cannot read invoices: ' + iErr.message); setSyncing(false); return }
+    setSyncMsg('⏳ Found ' + (allInvoices||[]).length + ' existing invoices. Creating missing...')
+    
+    // Step 3: find missing
+    const existingRefs = new Set((allInvoices||[]).map(i => i.case_ref))
+    const missing = (allCases||[]).filter(c => c.case_id && !existingRefs.has(c.case_id))
+    
+    if (missing.length === 0) {
+      setSyncMsg('✅ All ' + (allCases||[]).length + ' cases already have invoices. Total: ' + (allInvoices||[]).length)
+      setInvoices(allInvoices || [])
+      setSyncing(false)
+      return
+    }
+    
+    // Step 4: insert one by one with detailed error
+    let created = 0
+    let firstError = null
+    for (let i = 0; i < missing.length; i++) {
+      const c = missing[i]
+      setSyncMsg('⏳ Creating invoice ' + (i+1) + ' of ' + missing.length + ': ' + c.client_name)
+      const { data: ins, error: insErr } = await supabase.from('invoices').insert([{
+        case_ref: c.case_id,
+        client_name: c.client_name || 'Unknown',
+        client_phone: c.client_phone || '',
+        amount: Number(c.amount) || 1000,
+        payment_method: c.payment_method || 'bKash Send Money',
+        status: 'unpaid',
+        invoice_number: 'INV-' + Date.now() + '-' + i,
+        created_at: new Date().toISOString()
+      }]).select()
+      if (insErr) {
+        if (!firstError) firstError = insErr.message + ' (code: ' + insErr.code + ')'
+      } else {
+        created++
       }
-      
-      let created = 0
-      let errors = 0
-      for (const c of missing) {
-        const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6) + created
-        const { error: insErr } = await supabase.from('invoices').insert([{
-          case_ref: c.case_id,
-          client_name: c.client_name,
-          client_phone: c.client_phone || '',
-          amount: Number(c.amount) || 1000,
-          payment_method: c.payment_method || 'bKash Send Money',
-          status: c.payment_status === 'received' ? 'paid' : 'unpaid',
-          invoice_number: invNum,
-          created_at: c.created_at || new Date().toISOString()
-        }])
-        if (insErr) { 
-          console.error('Insert error:', insErr.message)
-          if (errors === 0) setSyncMsg('❌ Insert error: ' + insErr.message)
-          errors++ 
-        } else created++
-      }
-      
-      const result = await loadInvoices()
-      setSyncMsg(`✅ Created ${created} invoices${errors > 0 ? ` (${errors} failed — check RLS)` : ''}. Found ${result?.length || 0} total.`)
-    } catch (e) {
-      setSyncMsg('❌ Sync failed: ' + e.message)
+    }
+    
+    // Step 5: reload and report
+    const { data: final } = await getInvoices()
+    setInvoices(final || [])
+    
+    if (firstError) {
+      setSyncMsg('⚠️ Created ' + created + '/' + missing.length + '. Error: ' + firstError)
+    } else {
+      setSyncMsg('✅ Created ' + created + ' invoices! Total: ' + (final||[]).length)
     }
     setSyncing(false)
   }
