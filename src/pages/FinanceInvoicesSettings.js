@@ -13,7 +13,7 @@ export function Invoices() {
 
   const loadInvoices = async () => {
     const { data, error } = await getInvoices()
-    if (data) setInvoices(data)
+    setInvoices(data || [])
     if (error) console.error('Invoice load error:', error)
   }
 
@@ -46,7 +46,9 @@ export function Invoices() {
         created++
       }
       await loadInvoices()
-      setSyncMsg(created > 0 ? `✅ Created ${created} missing invoice(s) from existing cases.` : '✅ All cases already have invoices. Nothing to sync.')
+      setSyncMsg(created > 0 ? `✅ Created ${created} invoices from existing cases. Scroll down to see them.` : '✅ All cases already have invoices.')
+      // Force a second reload after brief delay to ensure Supabase has committed
+      setTimeout(() => loadInvoices(), 800)
     } catch (e) {
       setSyncMsg('❌ Sync failed: ' + e.message)
     }
