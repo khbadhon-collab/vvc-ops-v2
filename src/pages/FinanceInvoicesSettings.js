@@ -13,8 +13,11 @@ export function Invoices() {
 
   const loadInvoices = async () => {
     const { data, error } = await getInvoices()
+    if (error) {
+      console.error('Invoice load error:', error.message)
+    }
     setInvoices(data || [])
-    if (error) console.error('Invoice load error:', error)
+    return data
   }
 
   useEffect(() => { loadInvoices() }, [])
@@ -26,29 +29,42 @@ export function Invoices() {
     setSyncing(true)
     setSyncMsg('')
     try {
-      const { data: allCases } = await getCases()
-      const { data: allInvoices } = await getInvoices()
+      const { data: allCases, error: cErr } = await getCases()
+      if (cErr) { setSyncMsg('❌ Cannot read cases: ' + cErr.message); setSyncing(false); return }
+      
+      const { data: allInvoices, error: iErr } = await getInvoices()
+      if (iErr) { setSyncMsg('❌ Cannot read invoices: ' + iErr.message); setSyncing(false); return }
+      
       const existingRefs = new Set((allInvoices||[]).map(i => i.case_ref))
       const missing = (allCases||[]).filter(c => c.case_id && !existingRefs.has(c.case_id))
+      
+      if (missing.length === 0) {
+        setSyncMsg(`✅ All ${(allCases||[]).length} cases already have invoices.`)
+        await loadInvoices()
+        setSyncing(false)
+        return
+      }
+      
       let created = 0
+      let errors = 0
       for (const c of missing) {
-        const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Math.floor(1000+Math.random()*9000)) + created
-        await supabase.from('invoices').insert([{
+        const invNum = 'INV-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6) + created
+        const { error: insErr } = await supabase.from('invoices').insert([{
           case_ref: c.case_id,
           client_name: c.client_name,
-          client_phone: c.client_phone,
-          amount: Number(c.amount)||0,
+          client_phone: c.client_phone || '',
+          amount: Number(c.amount) || 1000,
           payment_method: c.payment_method || 'bKash Send Money',
-          status: c.payment_status==='received' ? 'paid' : 'unpaid',
+          status: c.payment_status === 'received' ? 'paid' : 'unpaid',
           invoice_number: invNum,
           created_at: c.created_at || new Date().toISOString()
         }])
-        created++
+        if (insErr) { console.error('Insert error:', insErr.message); errors++ } 
+        else created++
       }
-      await loadInvoices()
-      setSyncMsg(created > 0 ? `✅ Created ${created} invoices from existing cases. Scroll down to see them.` : '✅ All cases already have invoices.')
-      // Force a second reload after brief delay to ensure Supabase has committed
-      setTimeout(() => loadInvoices(), 800)
+      
+      const result = await loadInvoices()
+      setSyncMsg(`✅ Created ${created} invoices${errors > 0 ? ` (${errors} failed — check RLS)` : ''}. Found ${result?.length || 0} total.`)
     } catch (e) {
       setSyncMsg('❌ Sync failed: ' + e.message)
     }
@@ -293,21 +309,23 @@ export function Invoices() {
         {filtered.length === 0 && <div style={{padding:24,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet. Create a case to auto-generate, or add manually above.</div>}
         {filtered.map(inv => (
           <div key={inv.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-              <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{flex:1,minWidth:0}}>
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{inv.client_name}</div>
-                <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>{inv.invoice_number} · {inv.case_ref}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)',marginTop:2 }}>
+                  {inv.invoice_number} · {inv.case_ref} · {new Date(inv.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
+                </div>
               </div>
-              <div style={{ textAlign: 'right', display:'flex', alignItems:'center', gap:10 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>৳{inv.amount}</div>
+              <div style={{ textAlign: 'right', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                <div style={{textAlign:'right'}}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color:'var(--navy)' }}>৳{Number(inv.amount).toLocaleString()}</div>
                   <span className={`badge ${inv.status}`}>{inv.status}</span>
                 </div>
                 <button onClick={() => openEdit(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--navy)', padding:4 }}>
-                  <Edit2 size={15} />
+                  <Edit2 size={14} />
                 </button>
                 <button onClick={() => setConfirmDelete(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--danger)', padding:4 }}>
-                  <Trash2 size={15} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
@@ -326,8 +344,8 @@ export function Invoices() {
               {inv.status === 'paid' && (
                 <span style={{ fontSize: 11.5, color: 'var(--text3)' }}>Paid via {inv.payment_method}</span>
               )}
-              <button className="btn btn-sm" style={{color:'var(--navy)',borderColor:'var(--navy)'}} onClick={()=>generateInvoicePDF(inv)}>
-                <Download size={11}/> PDF
+              <button className="btn btn-primary btn-sm" onClick={()=>generateInvoicePDF(inv)} style={{background:'var(--navy)',color:'#fff',border:'none'}}>
+                <Download size={11}/> Download PDF
               </button>
             </div>
           </div>
