@@ -59,8 +59,11 @@ export function Invoices() {
           invoice_number: invNum,
           created_at: c.created_at || new Date().toISOString()
         }])
-        if (insErr) { console.error('Insert error:', insErr.message); errors++ } 
-        else created++
+        if (insErr) { 
+          console.error('Insert error:', insErr.message)
+          if (errors === 0) setSyncMsg('❌ Insert error: ' + insErr.message)
+          errors++ 
+        } else created++
       }
       
       const result = await loadInvoices()
