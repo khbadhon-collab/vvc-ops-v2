@@ -127,3 +127,10 @@ export const WA_TEMPLATES = {
 
 export const waFollowUp = (client, caseId) => WA_TEMPLATES.follow_up(client, caseId)
 export const waReviewRequest = (client) => WA_TEMPLATES.review_request(client)
+
+// ── KEEP SUPABASE ALIVE (prevents free tier pausing) ──
+// Pings the database every 5 minutes while app is open
+const keepAlive = () => {
+  supabase.from('cases').select('id').limit(1).then(() => {})
+}
+setInterval(keepAlive, 5 * 60 * 1000) // every 5 minutes
