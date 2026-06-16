@@ -305,51 +305,66 @@ export function Invoices() {
       )}
       {syncMsg && <div style={{fontSize:12.5,padding:'8px 12px',borderRadius:8,background:'var(--surface2)',color:'var(--text2)',marginBottom:12}}>{syncMsg}</div>}
 
+      {/* Karbar-style invoice table */}
       <div className="card">
-        {filtered.length === 0 && <div style={{padding:24,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet. Create a case to auto-generate, or add manually above.</div>}
-        {filtered.map(inv => (
-          <div key={inv.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{inv.client_name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)',marginTop:2 }}>
-                  {inv.invoice_number} · {inv.case_ref} · {new Date(inv.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-                <div style={{textAlign:'right'}}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color:'var(--navy)' }}>৳{Number(inv.amount).toLocaleString()}</div>
-                  <span className={`badge ${inv.status}`}>{inv.status}</span>
-                </div>
-                <button onClick={() => openEdit(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--navy)', padding:4 }}>
-                  <Edit2 size={14} />
-                </button>
-                <button onClick={() => setConfirmDelete(inv)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--danger)', padding:4 }}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
+        {/* Table header */}
+        <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 80px 100px 120px',gap:0,background:'var(--surface2)',padding:'10px 16px',borderBottom:'2px solid var(--border)',fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.3px'}}>
+          <div>Inv No</div>
+          <div>Client</div>
+          <div>Date</div>
+          <div>Status</div>
+          <div style={{textAlign:'right'}}>Amount</div>
+          <div style={{textAlign:'center'}}>Actions</div>
+        </div>
+        {filtered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet.<br/>Click "+ Add manually" or "Sync from cases" above.</div>}
+        {filtered.map((inv,idx) => (
+          <div key={inv.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 80px 100px 120px',gap:0,padding:'12px 16px',borderBottom:'1px solid var(--border)',alignItems:'center',background:idx%2===0?'#fff':'#FAFBFC'}}>
+            {/* Invoice No */}
+            <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>{inv.invoice_number?.replace('INV-','#') || '#—'}</div>
+            {/* Client */}
+            <div>
+              <div style={{fontWeight:600,fontSize:13}}>{inv.client_name}</div>
+              <div style={{fontSize:11,color:'var(--text3)'}}>{inv.case_ref} · {inv.payment_method}</div>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            {/* Date */}
+            <div style={{fontSize:12,color:'var(--text2)'}}>
+              {inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—'}
+            </div>
+            {/* Status */}
+            <div>
+              <span style={{fontSize:11,fontWeight:700,padding:'3px 8px',borderRadius:20,background:inv.status==='paid'?'#DCFCE7':inv.status==='overdue'?'#FEE2E2':'#FEF3C7',color:inv.status==='paid'?'#15803D':inv.status==='overdue'?'#B91C1C':'#B45309'}}>
+                {(inv.status||'unpaid').toUpperCase()}
+              </span>
+            </div>
+            {/* Amount */}
+            <div style={{textAlign:'right',fontWeight:700,fontSize:14,color:inv.status==='paid'?'#15803D':'var(--text)'}}>
+              ৳{Number(inv.amount||0).toLocaleString()}
+            </div>
+            {/* Actions */}
+            <div style={{display:'flex',gap:4,justifyContent:'center',alignItems:'center'}}>
+              <button title="Download PDF" onClick={()=>generateInvoicePDF(inv)} style={{background:'var(--navy)',border:'none',borderRadius:6,padding:'5px 8px',cursor:'pointer',color:'#fff',display:'flex',alignItems:'center',gap:3,fontSize:11}}>
+                <Download size={11}/> PDF
+              </button>
               {inv.status !== 'paid' && (
-                <>
-                  <a href={buildWhatsAppLink(inv.client_phone, waInvoiceMessage(inv.client_name, inv.case_ref, inv.amount, inv.payment_method))}
-                    target="_blank" rel="noreferrer" className="btn btn-wa btn-sm">
-                    <MessageCircle size={12} /> Resend
-                  </a>
-                  <button className="btn btn-success btn-sm" onClick={() => handleMarkPaid(inv)}>
-                    <CheckCircle size={12} /> Mark paid
-                  </button>
-                </>
+                <button title="Mark paid" onClick={()=>handleMarkPaid(inv)} style={{background:'#15803D',border:'none',borderRadius:6,padding:'5px 8px',cursor:'pointer',color:'#fff',fontSize:11}}>
+                  ✓
+                </button>
               )}
-              {inv.status === 'paid' && (
-                <span style={{ fontSize: 11.5, color: 'var(--text3)' }}>Paid via {inv.payment_method}</span>
-              )}
-              <button className="btn btn-primary btn-sm" onClick={()=>generateInvoicePDF(inv)} style={{background:'var(--navy)',color:'#fff',border:'none'}}>
-                <Download size={11}/> Download PDF
+              <button title="Edit" onClick={()=>openEdit(inv)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'var(--navy)'}}>
+                <Edit2 size={11}/>
+              </button>
+              <button title="Delete" onClick={()=>setConfirmDelete(inv)} style={{background:'none',border:'1px solid #FECACA',borderRadius:6,padding:'5px 7px',cursor:'pointer',color:'var(--danger)'}}>
+                <Trash2 size={11}/>
               </button>
             </div>
           </div>
         ))}
+        {filtered.length > 0 && (
+          <div style={{padding:'10px 16px',background:'var(--surface2)',borderTop:'2px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} invoice{filtered.length!==1?'s':''}</div>
+            <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>Total: ৳{filtered.reduce((s,i)=>s+Number(i.amount||0),0).toLocaleString()}</div>
+          </div>
+        )}
       </div>
     </div>
   )
