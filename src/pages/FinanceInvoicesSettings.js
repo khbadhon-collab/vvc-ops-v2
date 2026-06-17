@@ -62,6 +62,7 @@ export function Invoices() {
         client_phone: c.client_phone || '',
         amount: Number(c.amount) || 1000,
         payment_method: c.payment_method || 'bKash Send Money',
+        tier: c.tier || 'basic',
         status: 'unpaid',
         invoice_number: 'INV-' + Date.now() + '-' + i,
         created_at: new Date().toISOString()
