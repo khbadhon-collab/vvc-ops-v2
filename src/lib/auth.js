@@ -17,3 +17,4 @@ export function hasAccess(role, path, customPages) {
   const clean = path.replace(/^\//, '').split('/')[0] || ''
   return perms.some(p => p === '/' ? clean === '' : p === clean || p.startsWith(clean))
 }
+// Wed Jun 17 19:02:13 UTC 2026
