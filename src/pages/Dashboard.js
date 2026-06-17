@@ -185,28 +185,53 @@ export default function Dashboard() {
           <span>Cashflow <span style={{fontSize:11,fontWeight:400,color:'var(--text3)'}}>Last 7 Days</span></span>
         </div>
         <div style={{padding:'14px 16px'}}>
-          <div style={{display:'flex',gap:0}}>
-            {/* Y-axis */}
-            <div style={{display:'flex',flexDirection:'column',justifyContent:'space-between',height:120,paddingBottom:20,marginRight:8,minWidth:32}}>
-              {[cfMax,Math.round(cfMax*0.75),Math.round(cfMax*0.5),Math.round(cfMax*0.25),0].map(v=>(
-                <div key={v} style={{fontSize:9,color:'var(--text3)',textAlign:'right'}}>{v>=1000?Math.round(v/1000)+'k':v}</div>
-              ))}
-            </div>
-            {/* Bars */}
-            <div style={{flex:1,display:'flex',gap:4,alignItems:'flex-end',height:120,position:'relative'}}>
-              {/* Grid lines */}
-              {[0,25,50,75,100].map(p=>(
-                <div key={p} style={{position:'absolute',left:0,right:0,bottom:`${p}%`,borderTop:'1px dashed #E5E7EB',zIndex:0}}/>
-              ))}
-              {cashflow7.map((d,i)=>(
-                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:0,zIndex:1}}>
-                  <div style={{display:'flex',gap:2,alignItems:'flex-end',height:100,width:'100%',justifyContent:'center'}}>
-                    <div title={`In: ৳${d.moneyIn.toLocaleString()}`} style={{width:'44%',background:'#22C55E',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyIn/cfMax*100),d.moneyIn>0?4:0)}px`,transition:'height .3s'}}/>
-                    <div title={`Out: ৳${d.moneyOut.toLocaleString()}`} style={{width:'44%',background:'#EF4444',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyOut/cfMax*100),d.moneyOut>0?4:0)}px`,transition:'height .3s'}}/>
-                  </div>
-                  <div style={{fontSize:9,color:d.ds===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.ds===todayStr?700:400,marginTop:4,textAlign:'center'}}>{d.label}</div>
+          {/* Karbar-style chart with Y-axis */}
+          <div style={{display:'flex',gap:0,alignItems:'stretch'}}>
+            {/* Y-axis labels */}
+            <div style={{display:'flex',flexDirection:'column',justifyContent:'space-between',paddingBottom:24,marginRight:6,minWidth:28,height:220}}>
+              {[cfMax, Math.round(cfMax*0.75), Math.round(cfMax*0.5), Math.round(cfMax*0.25), 0].map(v=>(
+                <div key={v} style={{fontSize:9,color:'var(--text3)',textAlign:'right',lineHeight:1}}>
+                  {v>=1000?Math.round(v/1000)+'k':v}
                 </div>
               ))}
+            </div>
+            {/* Chart area */}
+            <div style={{flex:1,position:'relative',height:220}}>
+              {/* Horizontal grid lines */}
+              {[0,25,50,75,100].map(p=>(
+                <div key={p} style={{position:'absolute',left:0,right:0,bottom:`${(p/100)*192+24}px`,borderTop:'1px dashed #E5E7EB',zIndex:0}}/>
+              ))}
+              {/* Zero line */}
+              <div style={{position:'absolute',left:0,right:0,bottom:24,borderTop:'2px solid #D1D5DB'}}/>
+              {/* Bars container */}
+              <div style={{position:'absolute',bottom:24,left:0,right:0,height:192,display:'flex',gap:6,alignItems:'flex-end',padding:'0 4px'}}>
+                {cashflow7.map((d,i)=>(
+                  <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2,height:'100%',justifyContent:'flex-end'}}>
+                    <div style={{display:'flex',gap:3,alignItems:'flex-end',width:'100%',justifyContent:'center',height:'100%'}}>
+                      <div
+                        style={{width:'42%',background:'#22C55E',borderRadius:'4px 4px 0 0',
+                          height:d.moneyIn>0?`${Math.max(Math.round(d.moneyIn/cfMax*192),6)}px`:'0px',
+                          transition:'height .4s ease',minWidth:8}}
+                        title={`Money In: ৳${d.moneyIn.toLocaleString()}`}
+                      />
+                      <div
+                        style={{width:'42%',background:'#EF4444',borderRadius:'4px 4px 0 0',
+                          height:d.moneyOut>0?`${Math.max(Math.round(d.moneyOut/cfMax*192),6)}px`:'0px',
+                          transition:'height .4s ease',minWidth:8}}
+                        title={`Money Out: ৳${d.moneyOut.toLocaleString()}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* X-axis dates */}
+              <div style={{position:'absolute',bottom:0,left:0,right:0,height:22,display:'flex',gap:6,padding:'0 4px'}}>
+                {cashflow7.map((d,i)=>(
+                  <div key={i} style={{flex:1,textAlign:'center',fontSize:9,color:d.ds===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.ds===todayStr?700:400,paddingTop:4}}>
+                    {d.label}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)',paddingTop:10,marginTop:4}}>
