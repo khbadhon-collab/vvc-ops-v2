@@ -67,9 +67,16 @@ export default function NewCase() {
   const handleSubmit = async () => {
     setError('')
     setSaving(true)
+    // Apply defaults for optional fields
+    const finalForm = {
+      ...form,
+      client_name: form.client_name.trim() || 'প্রিয় গ্রাহক',
+      country: form.country || 'Other',
+      doc_type: form.doc_type || 'Other',
+    }
     try {
       const { data: newCase, error: caseErr } = await createCase({
-        ...form,
+        ...finalForm,
         amount: totalAmount,
         qty,
         status: 'new',
@@ -82,7 +89,7 @@ export default function NewCase() {
       }
       await createInvoice({
         case_ref: newCase.case_id,
-        client_name: form.client_name,
+        client_name: finalForm.client_name,
         client_phone: form.client_phone,
         amount: totalAmount,
         tier: form.tier,
@@ -100,7 +107,7 @@ export default function NewCase() {
   }
 
   const waLink = createdCase
-    ? buildWhatsAppLink(form.client_phone, waInvoiceMessage(form.client_name, createdCase.case_id, totalAmount, form.payment_method))
+    ? buildWhatsAppLink(form.client_phone, waInvoiceMessage(form.client_name || 'প্রিয় গ্রাহক', createdCase.case_id, totalAmount, form.payment_method))
     : '#'
 
   const markPaymentReceived = async () => {
@@ -188,22 +195,22 @@ export default function NewCase() {
             <div className="card-header">Client details</div>
             <div className="card-body">
               <div className="form-group">
-                <label className="form-label">Full name *</label>
-                <input className="form-input" placeholder="e.g. Md. Rafiqul Islam" value={form.client_name} onChange={e => set('client_name', e.target.value)} />
+                <label className="form-label">Full name (optional)</label>
+                <input className="form-input" placeholder="প্রিয় গ্রাহক (leave blank)" value={form.client_name} onChange={e => set('client_name', e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">WhatsApp number *</label>
+                <label className="form-label">WhatsApp number (optional)</label>
                 <input className="form-input" placeholder="+880 1XXXXXXXXX" value={form.client_phone} onChange={e => set('client_phone', e.target.value)} type="tel" />
               </div>
               <div className="form-group">
-                <label className="form-label">Destination country *</label>
+                <label className="form-label">Destination country (optional)</label>
                 <select className="form-select" value={form.country} onChange={e => set('country', e.target.value)}>
                   <option value="">Select country</option>
                   {COUNTRIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Document type *</label>
+                <label className="form-label">Document type (optional)</label>
                 <select className="form-select" value={form.doc_type} onChange={e => set('doc_type', e.target.value)}>
                   <option value="">Select type</option>
                   {DOC_TYPES.map(d => <option key={d}>{d}</option>)}
@@ -233,7 +240,6 @@ export default function NewCase() {
           <button
             className="btn btn-primary btn-full"
             style={{ padding: 12 }}
-            disabled={!form.client_name || !form.client_phone || !form.country || !form.doc_type}
             onClick={() => setStep(2)}
           >Continue →</button>
         </div>
@@ -282,11 +288,6 @@ export default function NewCase() {
             <div className="card-body">
               <textarea className="form-textarea" placeholder="Any extra context about this case..." value={form.notes} onChange={e => set('notes', e.target.value)} />
             </div>
-          </div>
-
-          <div style={{ background: 'var(--info-bg)', border: '1px solid var(--border-info)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12.5, color: 'var(--info)', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span>🤖</span>
-            <span><strong>Gemini AI</strong> will automatically analyse documents after you open the case and upload files.</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
