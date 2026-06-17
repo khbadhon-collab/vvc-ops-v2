@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCases, getInvoices, getExpenses, buildWhatsAppLink, waFollowUp, waReviewRequest } from '../lib/supabase'
-import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw } from 'lucide-react'
+import { getCases, getInvoices, getExpenses, addExpense, buildWhatsAppLink, waFollowUp, waReviewRequest, supabase } from '../lib/supabase'
+import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2 } from 'lucide-react'
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -13,7 +13,48 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [showSaleModal, setShowSaleModal] = useState(false)
+  const [showExpModal, setShowExpModal] = useState(false)
+  const [saleForm, setSaleForm] = useState({client_name:'',amount:'',payment_method:'bKash Send Money'})
+  const [expForm, setExpForm] = useState({description:'',amount:'',category:'General'})
+  const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
+
+  const quickAddSale = async () => {
+    if (!saleForm.client_name || !saleForm.amount) return
+    setSaving(true)
+    const invNum = 'INV-' + Date.now()
+    await supabase.from('invoices').insert([{
+      client_name: saleForm.client_name,
+      amount: Number(saleForm.amount),
+      payment_method: saleForm.payment_method,
+      tier: 'basic',
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+      invoice_number: invNum,
+      created_at: new Date().toISOString()
+    }])
+    setSaleForm({client_name:'',amount:'',payment_method:'bKash Send Money'})
+    setShowSaleModal(false)
+    setSaving(false)
+    load(true)
+  }
+
+  const quickAddExpense = async () => {
+    if (!expForm.description || !expForm.amount) return
+    setSaving(true)
+    await supabase.from('expenses').insert([{
+      description: expForm.description,
+      amount: Number(expForm.amount),
+      category: expForm.category,
+      date: new Date().toISOString().slice(0,10),
+      created_at: new Date().toISOString()
+    }])
+    setExpForm({description:'',amount:'',category:'General'})
+    setShowExpModal(false)
+    setSaving(false)
+    load(true)
+  }
 
   const now = new Date()
   const todayStr = now.toISOString().slice(0,10)
@@ -105,61 +146,126 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-        <div>
-          <div style={{fontWeight:700,fontSize:16,color:'var(--navy)'}}>Welcome, VVC Ops 👋</div>
-          <div style={{fontSize:12,color:'var(--text3)'}}>{now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+      {/* Quick Add Sale Modal */}
+      {showSaleModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:14,padding:24,maxWidth:340,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
+            <div style={{fontWeight:700,fontSize:16,marginBottom:16,color:'var(--navy)'}}>+ Add Sales Payment</div>
+            <div className="form-group"><label className="form-label">Client name *</label>
+              <input className="form-input" placeholder="e.g. Mr Noyon" value={saleForm.client_name} onChange={e=>setSaleForm(f=>({...f,client_name:e.target.value}))}/>
+            </div>
+            <div className="form-group"><label className="form-label">Amount (৳) *</label>
+              <input className="form-input" type="number" placeholder="1000" value={saleForm.amount} onChange={e=>setSaleForm(f=>({...f,amount:e.target.value}))}/>
+            </div>
+            <div className="form-group"><label className="form-label">Payment method</label>
+              <select className="form-select" value={saleForm.payment_method} onChange={e=>setSaleForm(f=>({...f,payment_method:e.target.value}))}>
+                {['bKash Send Money','bKash Merchant','Nagad','Rocket','Cash','Bank Transfer'].map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:4}}>
+              <button className="btn btn-full" onClick={()=>setShowSaleModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={quickAddSale} disabled={saving||!saleForm.client_name||!saleForm.amount}>{saving?'Saving...':'Save'}</button>
+            </div>
+          </div>
         </div>
-        <div style={{display:'flex',gap:8}}>
+      )}
+
+      {/* Quick Add Expense Modal */}
+      {showExpModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:14,padding:24,maxWidth:340,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
+            <div style={{fontWeight:700,fontSize:16,marginBottom:16,color:'var(--navy)'}}>+ Add Expense</div>
+            <div className="form-group"><label className="form-label">Description *</label>
+              <input className="form-input" placeholder="e.g. Facebook Ads" value={expForm.description} onChange={e=>setExpForm(f=>({...f,description:e.target.value}))}/>
+            </div>
+            <div className="form-group"><label className="form-label">Amount (৳) *</label>
+              <input className="form-input" type="number" placeholder="500" value={expForm.amount} onChange={e=>setExpForm(f=>({...f,amount:e.target.value}))}/>
+            </div>
+            <div className="form-group"><label className="form-label">Category</label>
+              <select className="form-select" value={expForm.category} onChange={e=>setExpForm(f=>({...f,category:e.target.value}))}>
+                {['Advertising','Rent','Salary','Utilities','Transport','Food','Software','Other'].map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:4}}>
+              <button className="btn btn-full" onClick={()=>setShowExpModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={quickAddExpense} disabled={saving||!expForm.description||!expForm.amount}>{saving?'Saving...':'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header - Karbar style */}
+      <div style={{marginBottom:16}}>
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:17,color:'var(--navy)'}}>Welcome, VVC Ops 👋</div>
+            <div style={{fontSize:12,color:'var(--text3)'}}>{now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+          </div>
           <button className="btn btn-sm" onClick={()=>load(true)} disabled={refreshing} style={{color:'var(--navy)'}}>
-            <RefreshCw size={13} style={{animation:refreshing?'spin 1s linear infinite':'none'}}/> {refreshing?'Refreshing...':'Refresh'}
+            <RefreshCw size={12} style={{animation:refreshing?'spin 1s linear infinite':'none'}}/> {refreshing?'...':'Refresh'}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={()=>navigate('/cases/new')}>
-            <Plus size={13}/> New case
+        </div>
+        {/* Karbar-style action buttons */}
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button onClick={()=>navigate('/cases/new')} style={{flex:1,minWidth:100,background:'#0F4C81',color:'#fff',border:'none',borderRadius:10,padding:'10px 12px',fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            <Plus size={14}/> New Case
+          </button>
+          <button onClick={()=>setShowSaleModal(true)} style={{flex:1,minWidth:100,background:'#15803D',color:'#fff',border:'none',borderRadius:10,padding:'10px 12px',fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            <Receipt size={14}/> Add Sale
+          </button>
+          <button onClick={()=>setShowExpModal(true)} style={{flex:1,minWidth:100,background:'#B91C1C',color:'#fff',border:'none',borderRadius:10,padding:'10px 12px',fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            <Wallet size={14}/> Add Expense
           </button>
         </div>
       </div>
 
-      {/* TOP SUMMARY CARDS - Karbar style */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-        {/* To Receive */}
+      {/* TOP SUMMARY CARDS - Karbar 4-in-a-row style */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
         <div onClick={()=>navigate('/invoices')} style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#15803D',fontWeight:600,marginBottom:4}}>↓ To Receive</div>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+            <span style={{fontSize:18,color:'#15803D'}}>↓</span>
+            <span style={{fontSize:11,color:'#15803D',fontWeight:600}}>To Receive</span>
+          </div>
           <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{outstanding.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#15803D',marginTop:2}}>{unpaidInvoices.length} unpaid invoices</div>
+          <div style={{fontSize:11,color:'#15803D',marginTop:3,opacity:.8}}>{unpaidInvoices.length} unpaid invoices</div>
         </div>
-        {/* To Give (expenses outstanding) */}
         <div onClick={()=>navigate('/finance')} style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#B91C1C',fontWeight:600,marginBottom:4}}>↑ This Month Expense</div>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+            <span style={{fontSize:18,color:'#B91C1C'}}>↑</span>
+            <span style={{fontSize:11,color:'#B91C1C',fontWeight:600}}>Expense ({monthName})</span>
+          </div>
           <div style={{fontSize:22,fontWeight:800,color:'#B91C1C'}}>৳{thisMonthExpenses.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#B91C1C',marginTop:2}}>Today: ৳{todayExpenses.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#B91C1C',marginTop:3,opacity:.8}}>Today: ৳{todayExpenses.toLocaleString()}</div>
         </div>
-        {/* Monthly Sales */}
         <div onClick={()=>navigate('/finance')} style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#1D4ED8',fontWeight:600,marginBottom:4}}>↑ {monthName} Sales</div>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+            <span style={{fontSize:18}}>🏷</span>
+            <span style={{fontSize:11,color:'#1D4ED8',fontWeight:600}}>Sales ({monthName})</span>
+          </div>
           <div style={{fontSize:22,fontWeight:800,color:'#1D4ED8'}}>৳{thisMonthIncome.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#1D4ED8',marginTop:2}}>{incomeTrend>=0?`↑ ৳${incomeTrend.toLocaleString()} vs last month`:`↓ ৳${Math.abs(incomeTrend).toLocaleString()} vs last month`}</div>
+          <div style={{fontSize:11,color:'#1D4ED8',marginTop:3,opacity:.8}}>{incomeTrend>=0?`↑ ৳${incomeTrend.toLocaleString()} vs last month`:`↓ ৳${Math.abs(incomeTrend).toLocaleString()} vs last month`}</div>
         </div>
-        {/* Active Cases */}
-        <div onClick={()=>navigate('/cases')} style={{background:'#FEF3E2',border:'1px solid #FDE4BC',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#B45309',fontWeight:600,marginBottom:4}}>📋 Active Cases</div>
-          <div style={{fontSize:22,fontWeight:800,color:'#B45309'}}>{active}</div>
-          <div style={{fontSize:11,color:'#B45309',marginTop:2}}>{newToday} new today · {caseTrend>=0?`↑ ${caseTrend}`:`↓ ${Math.abs(caseTrend)}`} this month</div>
+        <div onClick={()=>navigate('/cases')} style={{background:'#F0F9FF',border:'1px solid #BAE6FD',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+            <span style={{fontSize:18}}>🛒</span>
+            <span style={{fontSize:11,color:'#0369A1',fontWeight:600}}>Active Cases</span>
+          </div>
+          <div style={{fontSize:22,fontWeight:800,color:'#0369A1'}}>{active}</div>
+          <div style={{fontSize:11,color:'#0369A1',marginTop:3,opacity:.8}}>{newToday} new today</div>
         </div>
       </div>
 
-      {/* TOTAL BALANCE + TODAY SALES - side by side */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+      {/* TOTAL BALANCE + TODAY SALES */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
         <div style={{background:'var(--navy)',borderRadius:12,padding:'14px 16px',color:'#fff'}}>
-          <div style={{fontSize:11,fontWeight:600,opacity:.8,marginBottom:4}}>Total Balance (This Month)</div>
+          <div style={{fontSize:11,fontWeight:600,opacity:.7,marginBottom:4}}>Total Balance (Cash & Month)</div>
           <div style={{fontSize:22,fontWeight:800}}>৳{totalBalance.toLocaleString()}</div>
-          <div style={{fontSize:11,opacity:.7,marginTop:2}}>Income - Expenses</div>
+          <div style={{fontSize:11,opacity:.6,marginTop:3}}>Income minus Expenses</div>
         </div>
-        <div style={{background:todaySales>0?'#F0FDF4':'#fff',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px'}}>
+        <div onClick={()=>setShowSaleModal(true)} style={{background:todaySales>0?'#F0FDF4':'#fff',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
           <div style={{fontSize:11,color:'#15803D',fontWeight:600,marginBottom:4}}>💰 Today's Sales</div>
           <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{todaySales.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#15803D',marginTop:2}}>{todaySalesCount} payment{todaySalesCount!==1?'s':''} received · {completedToday} completed</div>
+          <div style={{fontSize:11,color:'#15803D',marginTop:3,opacity:.8}}>{todaySalesCount} received · tap to add more</div>
         </div>
       </div>
 
