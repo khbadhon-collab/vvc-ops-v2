@@ -4,7 +4,6 @@ import { getCases, getInvoices, getExpenses, buildWhatsAppLink, waFollowUp, waRe
 import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw } from 'lucide-react'
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
-const initials = (n) => n?.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase() || '?'
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -46,26 +45,33 @@ export default function Dashboard() {
   const done = cases.filter(c => c.status === 'done').length
   const completedToday = cases.filter(c => c.status==='done' && (c.completed_at||'').slice(0,10)===todayStr).length
   const caseTrend = thisMonthCases.length - prevMonthCases.length
+  const newToday = cases.filter(c => (c.created_at||'').slice(0,10)===todayStr).length
 
   // ── Finance stats ──
-  const thisMonthIncome = invoices.filter(i => i.status==='paid' && (i.paid_at||i.created_at) >= monthStart).reduce((s,i)=>s+Number(i.amount||0),0)
+  const paidInvoices = invoices.filter(i => i.status==='paid')
+  const unpaidInvoices = invoices.filter(i => i.status!=='paid')
+  const thisMonthIncome = paidInvoices.filter(i => (i.paid_at||i.created_at) >= monthStart).reduce((s,i)=>s+Number(i.amount||0),0)
+  const todaySales = paidInvoices.filter(i => (i.paid_at||i.created_at||'').slice(0,10)===todayStr).reduce((s,i)=>s+Number(i.amount||0),0)
+  const todaySalesCount = paidInvoices.filter(i => (i.paid_at||i.created_at||'').slice(0,10)===todayStr).length
   const thisMonthExpenses = expenses.filter(e => (e.date||e.created_at||'') >= monthStart).reduce((s,e)=>s+Number(e.amount||0),0)
-  const outstanding = invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+Number(i.amount||0),0)
+  const todayExpenses = expenses.filter(e => (e.date||e.created_at||'').slice(0,10)===todayStr).reduce((s,e)=>s+Number(e.amount||0),0)
+  const outstanding = unpaidInvoices.reduce((s,i)=>s+Number(i.amount||0),0)
   const netProfit = thisMonthIncome - thisMonthExpenses
-  const prevMonthIncome = invoices.filter(i => i.status==='paid' && (i.paid_at||i.created_at) >= prevMonthStart && (i.paid_at||i.created_at) <= prevMonthEnd).reduce((s,i)=>s+Number(i.amount||0),0)
+  const prevMonthIncome = paidInvoices.filter(i => (i.paid_at||i.created_at) >= prevMonthStart && (i.paid_at||i.created_at) <= prevMonthEnd).reduce((s,i)=>s+Number(i.amount||0),0)
   const incomeTrend = thisMonthIncome - prevMonthIncome
+  const totalBalance = thisMonthIncome - thisMonthExpenses
 
   // ── Cashflow last 7 days ──
   const cashflow7 = Array.from({length:7}, (_,i) => {
     const d = new Date(); d.setDate(d.getDate() - (6-i))
     const ds = d.toISOString().slice(0,10)
-    const moneyIn = invoices.filter(inv => inv.status==='paid' && (inv.paid_at||inv.created_at||'').slice(0,10)===ds).reduce((s,inv)=>s+Number(inv.amount||0),0)
+    const moneyIn = paidInvoices.filter(inv => (inv.paid_at||inv.created_at||'').slice(0,10)===ds).reduce((s,inv)=>s+Number(inv.amount||0),0)
     const moneyOut = expenses.filter(e => (e.date||e.created_at||'').slice(0,10)===ds).reduce((s,e)=>s+Number(e.amount||0),0)
     return { label: d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}), ds, moneyIn, moneyOut }
   })
   const weekIn = cashflow7.reduce((s,d)=>s+d.moneyIn,0)
   const weekOut = cashflow7.reduce((s,d)=>s+d.moneyOut,0)
-  const cfMax = Math.max(...cashflow7.map(d=>Math.max(d.moneyIn,d.moneyOut)), 1)
+  const cfMax = Math.max(...cashflow7.map(d=>Math.max(d.moneyIn,d.moneyOut)), 1000)
 
   // ── 6-month trend ──
   const last6 = Array.from({length:6},(_,i)=>{
@@ -75,22 +81,25 @@ export default function Dashboard() {
     return {
       label: SHORT_MONTHS[m.getMonth()],
       cases: cases.filter(c=>c.created_at>=mStart&&c.created_at<=mEnd).length,
-      income: invoices.filter(i=>i.status==='paid'&&(i.paid_at||i.created_at)>=mStart&&(i.paid_at||i.created_at)<=mEnd).reduce((s,x)=>s+Number(x.amount||0),0)
+      income: paidInvoices.filter(i=>(i.paid_at||i.created_at)>=mStart&&(i.paid_at||i.created_at)<=mEnd).reduce((s,x)=>s+Number(x.amount||0),0)
     }
   })
   const maxCases = Math.max(...last6.map(m=>m.cases),1)
   const maxIncome = Math.max(...last6.map(m=>m.income),1)
 
-  // ── Actions & alerts ──
+  // ── Alerts ──
   const actions = cases.filter(c=>['pending','progress','suspicious','new'].includes(c.status)).slice(0,5)
   const stale = cases.filter(c => ['pending','new'].includes(c.status) && new Date(c.created_at) < new Date(Date.now()-3*24*60*60*1000) && c.client_phone)
   const reviewable = cases.filter(c => c.status==='done' && c.client_phone).slice(0,2)
 
+  // ── Today's paid invoices ──
+  const todayPaidList = paidInvoices.filter(i => (i.paid_at||i.created_at||'').slice(0,10)===todayStr).sort((a,b)=>new Date(b.paid_at||b.created_at)-new Date(a.paid_at||a.created_at))
+
   // ── Recent transactions ──
   const recentTx = [
-    ...invoices.filter(i=>i.status==='paid').map(i=>({type:'in', label:i.client_name, sub:i.invoice_number||i.case_ref, amount:Number(i.amount||0), date:i.paid_at||i.created_at})),
+    ...paidInvoices.map(i=>({type:'in', label:i.client_name, sub:i.invoice_number||i.case_ref, amount:Number(i.amount||0), date:i.paid_at||i.created_at})),
     ...expenses.map(e=>({type:'out', label:e.description, sub:e.category, amount:Number(e.amount||0), date:e.date||e.created_at}))
-  ].filter(t=>t.date).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6)
+  ].filter(t=>t.date).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8)
 
   if (loading) return <div style={{padding:30,textAlign:'center',color:'var(--text3)'}}>Loading dashboard...</div>
 
@@ -112,39 +121,49 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Karbar-style colored summary cards */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-        <div onClick={()=>navigate('/cases')} style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#15803D',fontWeight:600,marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:16}}>↓</span> Active Cases
-          </div>
-          <div style={{fontSize:24,fontWeight:800,color:'#15803D'}}>{active}</div>
-          <div style={{fontSize:11,color:'#15803D',marginTop:2}}>{caseTrend>0?`↑ ${caseTrend} this month`:caseTrend<0?`↓ ${Math.abs(caseTrend)} this month`:'Same as last month'}</div>
+      {/* TOP SUMMARY CARDS - Karbar style */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+        {/* To Receive */}
+        <div onClick={()=>navigate('/invoices')} style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+          <div style={{fontSize:11,color:'#15803D',fontWeight:600,marginBottom:4}}>↓ To Receive</div>
+          <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{outstanding.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#15803D',marginTop:2}}>{unpaidInvoices.length} unpaid invoices</div>
         </div>
-        <div onClick={()=>navigate('/invoices')} style={{background:'#FEF3E2',border:'1px solid #FDE4BC',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#B45309',fontWeight:600,marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:16}}>↓</span> To Receive
-          </div>
-          <div style={{fontSize:24,fontWeight:800,color:'#B45309'}}>৳{outstanding.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#B45309',marginTop:2}}>{invoices.filter(i=>i.status!=='paid').length} unpaid invoices</div>
-        </div>
-        <div onClick={()=>navigate('/finance')} style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#1D4ED8',fontWeight:600,marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:16}}>↑</span> {monthName} Sales
-          </div>
-          <div style={{fontSize:24,fontWeight:800,color:'#1D4ED8'}}>৳{thisMonthIncome.toLocaleString()}</div>
-          <div style={{fontSize:11,color:'#1D4ED8',marginTop:2}}>{incomeTrend>0?`↑ ৳${incomeTrend.toLocaleString()} vs last month`:incomeTrend<0?`↓ ৳${Math.abs(incomeTrend).toLocaleString()} vs last month`:'Same as last month'}</div>
-        </div>
+        {/* To Give (expenses outstanding) */}
         <div onClick={()=>navigate('/finance')} style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
-          <div style={{fontSize:11,color:'#B91C1C',fontWeight:600,marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:16}}>↑</span> {monthName} Expense
-          </div>
-          <div style={{fontSize:24,fontWeight:800,color:'#B91C1C'}}>৳{thisMonthExpenses.toLocaleString()}</div>
-          <div style={{fontSize:11,color:netProfit>=0?'#15803D':'#B91C1C',marginTop:2}}>Net: ৳{netProfit.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#B91C1C',fontWeight:600,marginBottom:4}}>↑ This Month Expense</div>
+          <div style={{fontSize:22,fontWeight:800,color:'#B91C1C'}}>৳{thisMonthExpenses.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#B91C1C',marginTop:2}}>Today: ৳{todayExpenses.toLocaleString()}</div>
+        </div>
+        {/* Monthly Sales */}
+        <div onClick={()=>navigate('/finance')} style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+          <div style={{fontSize:11,color:'#1D4ED8',fontWeight:600,marginBottom:4}}>↑ {monthName} Sales</div>
+          <div style={{fontSize:22,fontWeight:800,color:'#1D4ED8'}}>৳{thisMonthIncome.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#1D4ED8',marginTop:2}}>{incomeTrend>=0?`↑ ৳${incomeTrend.toLocaleString()} vs last month`:`↓ ৳${Math.abs(incomeTrend).toLocaleString()} vs last month`}</div>
+        </div>
+        {/* Active Cases */}
+        <div onClick={()=>navigate('/cases')} style={{background:'#FEF3E2',border:'1px solid #FDE4BC',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+          <div style={{fontSize:11,color:'#B45309',fontWeight:600,marginBottom:4}}>📋 Active Cases</div>
+          <div style={{fontSize:22,fontWeight:800,color:'#B45309'}}>{active}</div>
+          <div style={{fontSize:11,color:'#B45309',marginTop:2}}>{newToday} new today · {caseTrend>=0?`↑ ${caseTrend}`:`↓ ${Math.abs(caseTrend)}`} this month</div>
         </div>
       </div>
 
-      {/* Case status pills */}
+      {/* TOTAL BALANCE + TODAY SALES - side by side */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+        <div style={{background:'var(--navy)',borderRadius:12,padding:'14px 16px',color:'#fff'}}>
+          <div style={{fontSize:11,fontWeight:600,opacity:.8,marginBottom:4}}>Total Balance (This Month)</div>
+          <div style={{fontSize:22,fontWeight:800}}>৳{totalBalance.toLocaleString()}</div>
+          <div style={{fontSize:11,opacity:.7,marginTop:2}}>Income - Expenses</div>
+        </div>
+        <div style={{background:todaySales>0?'#F0FDF4':'#fff',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px'}}>
+          <div style={{fontSize:11,color:'#15803D',fontWeight:600,marginBottom:4}}>💰 Today's Sales</div>
+          <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{todaySales.toLocaleString()}</div>
+          <div style={{fontSize:11,color:'#15803D',marginTop:2}}>{todaySalesCount} payment{todaySalesCount!==1?'s':''} received · {completedToday} completed</div>
+        </div>
+      </div>
+
+      {/* STATUS PILLS */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6,marginBottom:12}}>
         {[
           {label:'Pending',value:pending,color:'var(--warning)'},
@@ -160,24 +179,37 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Cashflow chart - Karbar style */}
+      {/* CASHFLOW CHART - Karbar style with scale */}
       <div className="card mb-12">
         <div className="card-header">
           <span>Cashflow <span style={{fontSize:11,fontWeight:400,color:'var(--text3)'}}>Last 7 Days</span></span>
         </div>
         <div style={{padding:'14px 16px'}}>
-          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:100,marginBottom:6}}>
-            {cashflow7.map((d,i)=>(
-              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:0}}>
-                <div style={{display:'flex',gap:2,alignItems:'flex-end',height:80,width:'100%',justifyContent:'center'}}>
-                  <div style={{width:'42%',background:'#22C55E',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyIn/cfMax*76),d.moneyIn>0?4:0)}px`}}/>
-                  <div style={{width:'42%',background:'#EF4444',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyOut/cfMax*76),d.moneyOut>0?4:0)}px`}}/>
+          <div style={{display:'flex',gap:0}}>
+            {/* Y-axis */}
+            <div style={{display:'flex',flexDirection:'column',justifyContent:'space-between',height:120,paddingBottom:20,marginRight:8,minWidth:32}}>
+              {[cfMax,Math.round(cfMax*0.75),Math.round(cfMax*0.5),Math.round(cfMax*0.25),0].map(v=>(
+                <div key={v} style={{fontSize:9,color:'var(--text3)',textAlign:'right'}}>{v>=1000?Math.round(v/1000)+'k':v}</div>
+              ))}
+            </div>
+            {/* Bars */}
+            <div style={{flex:1,display:'flex',gap:4,alignItems:'flex-end',height:120,position:'relative'}}>
+              {/* Grid lines */}
+              {[0,25,50,75,100].map(p=>(
+                <div key={p} style={{position:'absolute',left:0,right:0,bottom:`${p}%`,borderTop:'1px dashed #E5E7EB',zIndex:0}}/>
+              ))}
+              {cashflow7.map((d,i)=>(
+                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:0,zIndex:1}}>
+                  <div style={{display:'flex',gap:2,alignItems:'flex-end',height:100,width:'100%',justifyContent:'center'}}>
+                    <div title={`In: ৳${d.moneyIn.toLocaleString()}`} style={{width:'44%',background:'#22C55E',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyIn/cfMax*100),d.moneyIn>0?4:0)}px`,transition:'height .3s'}}/>
+                    <div title={`Out: ৳${d.moneyOut.toLocaleString()}`} style={{width:'44%',background:'#EF4444',borderRadius:'3px 3px 0 0',height:`${Math.max(Math.round(d.moneyOut/cfMax*100),d.moneyOut>0?4:0)}px`,transition:'height .3s'}}/>
+                  </div>
+                  <div style={{fontSize:9,color:d.ds===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.ds===todayStr?700:400,marginTop:4,textAlign:'center'}}>{d.label}</div>
                 </div>
-                <div style={{fontSize:9,color:d.ds===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.ds===todayStr?700:400,marginTop:4,textAlign:'center'}}>{d.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-          <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)',paddingTop:10}}>
+          <div style={{display:'flex',justifyContent:'space-between',borderTop:'1px solid var(--border)',paddingTop:10,marginTop:4}}>
             <div>
               <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:'var(--text3)'}}>
                 <span style={{width:8,height:8,borderRadius:2,background:'#22C55E',display:'inline-block'}}/> Total Money In
@@ -194,7 +226,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent transactions */}
+      {/* TODAY'S SALES LIST */}
+      {todayPaidList.length > 0 && (
+        <div className="card mb-12">
+          <div className="card-header">
+            <span>💰 Today's payments received</span>
+            <span style={{fontSize:12,fontWeight:700,color:'#15803D'}}>৳{todaySales.toLocaleString()}</span>
+          </div>
+          {todayPaidList.map((inv,i)=>(
+            <div key={inv.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',borderTop:i>0?'1px solid var(--border)':'none'}}>
+              <div style={{width:32,height:32,borderRadius:'50%',background:'#F0FDF4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:'#15803D',fontWeight:800,fontSize:14}}>↓</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:13}}>{inv.client_name}</div>
+                <div style={{fontSize:11,color:'var(--text3)'}}>{inv.case_ref} · {inv.payment_method}</div>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:'#15803D'}}>+৳{Number(inv.amount).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* RECENT TRANSACTIONS */}
       <div className="card mb-12">
         <div className="card-header">
           Recent Transactions
@@ -217,30 +269,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Daily completions */}
-      <div className="card mb-12">
-        <div className="card-header">
-          <span style={{display:'flex',alignItems:'center',gap:6}}><FileCheck size={14}/> Daily completions</span>
-          <span style={{fontSize:11,color:'var(--text3)',fontWeight:400}}>{cashflow7.reduce((s,_,i)=>s+(cases.filter(c=>c.status==='done'&&(c.completed_at||'').slice(0,10)===cashflow7[i].ds).length),0)} this week</span>
-        </div>
-        <div style={{padding:'12px 16px'}}>
-          <div style={{display:'flex',gap:6,alignItems:'flex-end',height:60}}>
-            {cashflow7.map((d,i)=>{
-              const cnt = cases.filter(c=>c.status==='done'&&(c.completed_at||'').slice(0,10)===d.ds).length
-              const maxCnt = Math.max(...cashflow7.map(x=>cases.filter(c=>c.status==='done'&&(c.completed_at||'').slice(0,10)===x.ds).length),1)
-              return (
-                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                  <div style={{fontSize:10,fontWeight:700,color:cnt>0?'var(--success)':'var(--text3)'}}>{cnt||''}</div>
-                  <div style={{width:'100%',background:cnt>0?'var(--success)':'var(--surface2)',borderRadius:3,height:`${Math.max(Math.round(cnt/maxCnt*36),cnt>0?4:0)}px`}}/>
-                  <div style={{fontSize:9,color:d.ds===todayStr?'var(--navy)':'var(--text3)',fontWeight:d.ds===todayStr?700:400}}>{d.label}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Actions needed */}
+      {/* ACTIONS NEEDED */}
       {actions.length > 0 && (
         <div className="card mb-12">
           <div className="card-header">
@@ -260,7 +289,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Follow-up needed */}
+      {/* FOLLOW-UP */}
       {stale.length > 0 && (
         <div className="card mb-12">
           <div className="card-header" style={{color:'var(--warning)'}}>
@@ -281,7 +310,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Review requests */}
+      {/* REVIEW REQUESTS */}
       {reviewable.length > 0 && (
         <div className="card mb-12">
           <div className="card-header"><span style={{display:'flex',alignItems:'center',gap:6}}><Star size={14} color="var(--gold)"/> Ask for reviews</span></div>
@@ -299,34 +328,34 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 6-month trend */}
+      {/* 6-MONTH TREND */}
       <div className="card mb-12">
         <div className="card-header"><TrendingUp size={14}/> 6-month trend</div>
         <div style={{padding:'12px 16px'}}>
-          <div style={{fontSize:11,color:'var(--text3)',marginBottom:5,fontWeight:600}}>CASES</div>
-          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:36,marginBottom:12}}>
+          <div style={{fontSize:11,color:'var(--text3)',marginBottom:5,fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>Cases</div>
+          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginBottom:16}}>
             {last6.map((m,i)=>(
               <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                <div style={{fontSize:9,color:'var(--text3)'}}>{m.cases||''}</div>
-                <div style={{width:'100%',background:i===5?'var(--navy)':'var(--surface2)',borderRadius:'2px 2px 0 0',height:`${Math.max(Math.round(m.cases/maxCases*28),m.cases>0?3:0)}px`}}/>
-                <div style={{fontSize:9,color:'var(--text3)'}}>{m.label}</div>
+                <div style={{fontSize:9,color:'var(--text3)',fontWeight:600}}>{m.cases||''}</div>
+                <div style={{width:'100%',background:i===5?'var(--navy)':'var(--surface2)',borderRadius:'2px 2px 0 0',height:`${Math.max(Math.round(m.cases/maxCases*32),m.cases>0?3:0)}px`}}/>
+                <div style={{fontSize:9,color:i===5?'var(--navy)':'var(--text3)',fontWeight:i===5?700:400}}>{m.label}</div>
               </div>
             ))}
           </div>
-          <div style={{fontSize:11,color:'var(--text3)',marginBottom:5,fontWeight:600}}>INCOME (৳)</div>
-          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:36}}>
+          <div style={{fontSize:11,color:'var(--text3)',marginBottom:5,fontWeight:600,textTransform:'uppercase',letterSpacing:'.3px'}}>Income (৳)</div>
+          <div style={{display:'flex',gap:4,alignItems:'flex-end',height:40}}>
             {last6.map((m,i)=>(
               <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                <div style={{fontSize:9,color:'var(--text3)'}}>{m.income>0?`${Math.round(m.income/1000)}k`:''}</div>
-                <div style={{width:'100%',background:i===5?'#22C55E':'#BBF7D0',borderRadius:'2px 2px 0 0',height:`${Math.max(Math.round(m.income/maxIncome*28),m.income>0?3:0)}px`}}/>
-                <div style={{fontSize:9,color:'var(--text3)'}}>{m.label}</div>
+                <div style={{fontSize:9,color:'var(--text3)',fontWeight:600}}>{m.income>0?`${Math.round(m.income/1000)}k`:''}</div>
+                <div style={{width:'100%',background:i===5?'#22C55E':'#BBF7D0',borderRadius:'2px 2px 0 0',height:`${Math.max(Math.round(m.income/maxIncome*32),m.income>0?3:0)}px`}}/>
+                <div style={{fontSize:9,color:i===5?'#15803D':'var(--text3)',fontWeight:i===5?700:400}}>{m.label}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Quick nav */}
+      {/* QUICK NAV */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
         {[
           {label:'Intelligence',icon:<Globe size={14}/>,path:'/intelligence'},
