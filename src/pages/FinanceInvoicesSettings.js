@@ -323,8 +323,8 @@ export function Invoices() {
       {/* Karbar-style invoice table */}
       <div className="card">
         {/* Table header */}
-        <div style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 80px 100px 120px',gap:0,background:'var(--surface2)',padding:'10px 16px',borderBottom:'2px solid var(--border)',fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.3px'}}>
-          <div>Inv No</div>
+        <div style={{display:'grid',gridTemplateColumns:'50px 1fr 90px 70px 90px 130px',gap:0,background:'var(--surface2)',padding:'10px 16px',borderBottom:'2px solid var(--border)',fontSize:11,fontWeight:700,color:'var(--text2)',textTransform:'uppercase',letterSpacing:'.3px'}}>
+          <div>#</div>
           <div>Client</div>
           <div>Date</div>
           <div>Status</div>
@@ -333,9 +333,9 @@ export function Invoices() {
         </div>
         {filtered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet.<br/>Click "+ Add manually" or "Sync from cases" above.</div>}
         {filtered.map((inv,idx) => (
-          <div key={inv.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 100px 80px 100px 120px',gap:0,padding:'12px 16px',borderBottom:'1px solid var(--border)',alignItems:'center',background:idx%2===0?'#fff':'#FAFBFC'}}>
-            {/* Invoice No */}
-            <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>{inv.invoice_number?.replace('INV-','#') || '#—'}</div>
+          <div key={inv.id} style={{display:'grid',gridTemplateColumns:'50px 1fr 90px 70px 90px 130px',gap:0,padding:'12px 16px',borderBottom:'1px solid var(--border)',alignItems:'center',background:idx%2===0?'#fff':'#FAFBFC'}}>
+            {/* Invoice No - show sequential number */}
+            <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>{inv.invoice_number?.split('-').pop()?.slice(-4) || idx+1}</div>
             {/* Client */}
             <div>
               <div style={{fontWeight:600,fontSize:13}}>{inv.client_name}</div>

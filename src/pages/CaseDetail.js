@@ -205,19 +205,37 @@ export default function CaseDetail() {
 
 
 
-      {/* ── SECTION 2: Payment receipt ── */}
+      {/* ── SECTION 1: Payment ── */}
       <div className="card mb-12">
         <div className="card-header">
-          💳 Step 1 — Payment receipt
+          💳 Step 1 — Payment
           {c.payment_status==='received' && <span className="badge done">Received ✓</span>}
         </div>
-        <div className="card-body">
-          <label className="upload-zone" style={{cursor:receiptUploading?'wait':'pointer'}}>
-            <Upload size={18} style={{margin:'0 auto 4px',display:'block'}}/>
-            <p style={{fontSize:12.5}}>{receiptUploading?'Saving...':'Upload bKash/Nagad screenshot'}</p>
-            <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{display:'none'}} onChange={handleReceiptUpload} disabled={receiptUploading}/>
-          </label>
-          {c.payment_status==='received' && <div style={{marginTop:8,fontSize:12,color:'var(--success)',display:'flex',gap:6,alignItems:'center'}}><CheckCircle size={13}/>Payment receipt saved</div>}
+        <div style={{padding:'12px 16px'}}>
+          {c.payment_status==='received' ? (
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'#F0FDF4',borderRadius:8}}>
+              <CheckCircle size={18} color="var(--success)"/>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:13,color:'var(--success)'}}>Payment received ✓</div>
+                <div style={{fontSize:11.5,color:'var(--text3)'}}>Invoice marked as paid</div>
+              </div>
+              <button className="btn btn-sm" style={{fontSize:11}} onClick={async()=>{await updateCase(id,{payment_status:'pending'});await loadCase();showSuccess('Payment status updated')}}>Undo</button>
+            </div>
+          ) : (
+            <div>
+              <div style={{fontSize:12.5,color:'var(--text2)',marginBottom:10}}>Client has paid? Mark it received to update the invoice and finance records.</div>
+              <button className="btn btn-success btn-full" style={{padding:11}} onClick={async()=>{
+                await updateCase(id,{payment_status:'received'})
+                // Also mark the linked invoice as paid
+                const {data:invs} = await supabase.from('invoices').select('id').eq('case_ref',c.case_id)
+                if(invs&&invs.length>0) await supabase.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',invs[0].id)
+                await loadCase()
+                showSuccess('Payment marked as received ✓')
+              }}>
+                <CheckCircle size={14}/> Mark payment received
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

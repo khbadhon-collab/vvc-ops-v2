@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCases, getInvoices, getExpenses, addExpense, buildWhatsAppLink, waFollowUp, waReviewRequest, supabase } from '../lib/supabase'
+import { getCases, getInvoices, getExpenses, createCase, createInvoice, buildWhatsAppLink, waFollowUp, waReviewRequest, supabase } from '../lib/supabase'
 import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2 } from 'lucide-react'
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
@@ -15,26 +15,49 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [showSaleModal, setShowSaleModal] = useState(false)
   const [showExpModal, setShowExpModal] = useState(false)
-  const [saleForm, setSaleForm] = useState({client_name:'',amount:'',payment_method:'bKash Send Money'})
+  const [saleForm, setSaleForm] = useState({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money'})
   const [expForm, setExpForm] = useState({description:'',amount:'',category:'General'})
   const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
 
   const quickAddSale = async () => {
-    if (!saleForm.client_name || !saleForm.amount) return
+    if (!saleForm.amount) return
     setSaving(true)
-    const invNum = 'INV-' + Date.now()
-    await supabase.from('invoices').insert([{
-      client_name: saleForm.client_name,
-      amount: Number(saleForm.amount),
-      payment_method: saleForm.payment_method,
-      tier: 'basic',
-      status: 'paid',
-      paid_at: new Date().toISOString(),
-      invoice_number: invNum,
-      created_at: new Date().toISOString()
-    }])
-    setSaleForm({client_name:'',amount:'',payment_method:'bKash Send Money'})
+    const clientName = saleForm.client_name.trim() || 'প্রিয় গ্রাহক'
+    try {
+      // Create a case
+      const { data: newCase } = await createCase({
+        client_name: clientName,
+        client_phone: saleForm.client_phone || '',
+        country: 'Other',
+        doc_type: 'Other',
+        amount: Number(saleForm.amount),
+        tier: 'basic',
+        payment_method: saleForm.payment_method,
+        payment_status: 'received',
+        status: 'done',
+        lead_source: 'Direct',
+        completed_at: new Date().toISOString(),
+        ai_engine: 'gemini'
+      })
+      // Create paid invoice linked to case
+      if (newCase) {
+        const invNum = 'INV-' + Date.now()
+        await supabase.from('invoices').insert([{
+          case_ref: newCase.case_id,
+          client_name: clientName,
+          client_phone: saleForm.client_phone || '',
+          amount: Number(saleForm.amount),
+          payment_method: saleForm.payment_method,
+          tier: 'basic',
+          status: 'paid',
+          paid_at: new Date().toISOString(),
+          invoice_number: invNum,
+          created_at: new Date().toISOString()
+        }])
+      }
+    } catch(e) { console.error('Quick sale error:', e) }
+    setSaleForm({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money'})
     setShowSaleModal(false)
     setSaving(false)
     load(true)
@@ -151,8 +174,11 @@ export default function Dashboard() {
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
           <div style={{background:'#fff',borderRadius:14,padding:24,maxWidth:340,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
             <div style={{fontWeight:700,fontSize:16,marginBottom:16,color:'var(--navy)'}}>+ Add Sales Payment</div>
-            <div className="form-group"><label className="form-label">Client name *</label>
-              <input className="form-input" placeholder="e.g. Mr Noyon" value={saleForm.client_name} onChange={e=>setSaleForm(f=>({...f,client_name:e.target.value}))}/>
+            <div className="form-group"><label className="form-label">Client name (optional)</label>
+              <input className="form-input" placeholder="প্রিয় গ্রাহক" value={saleForm.client_name} onChange={e=>setSaleForm(f=>({...f,client_name:e.target.value}))}/>
+            </div>
+            <div className="form-group"><label className="form-label">WhatsApp number (optional)</label>
+              <input className="form-input" placeholder="+880 1XXXXXXXXX" value={saleForm.client_phone||''} onChange={e=>setSaleForm(f=>({...f,client_phone:e.target.value}))}/>
             </div>
             <div className="form-group"><label className="form-label">Amount (৳) *</label>
               <input className="form-input" type="number" placeholder="1000" value={saleForm.amount} onChange={e=>setSaleForm(f=>({...f,amount:e.target.value}))}/>
@@ -164,7 +190,7 @@ export default function Dashboard() {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:4}}>
               <button className="btn btn-full" onClick={()=>setShowSaleModal(false)}>Cancel</button>
-              <button className="btn btn-primary btn-full" onClick={quickAddSale} disabled={saving||!saleForm.client_name||!saleForm.amount}>{saving?'Saving...':'Save'}</button>
+              <button className="btn btn-primary btn-full" onClick={quickAddSale} disabled={saving||!saleForm.amount}>{saving?'Saving...':'Save'}</button>
             </div>
           </div>
         </div>
