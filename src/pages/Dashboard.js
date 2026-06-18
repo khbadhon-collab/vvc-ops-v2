@@ -185,7 +185,7 @@ export default function Dashboard() {
                 <label className="form-label">Country</label>
                 <select className="form-select" value={saleForm.country} onChange={e=>setSaleForm(f=>({...f,country:e.target.value}))}>
                   <option value="">Select country</option>
-                  {['Bahrain','Kuwait','Oman','Qatar','Saudi Arabia','UAE','Malaysia','Singapore','Thailand','Cyprus','Germany','Greece','Hungary','Italy','Malta','Poland','Romania','Serbia','UK','Other'].map(c=><option key={c}>{c}</option>)}
+                  {['Albania','Andorra','Argentina','Australia','Austria','Bahrain','Belarus','Belgium','Bosnia','Brazil','Brunei','Bulgaria','Cambodia','Canada','Chile','China','Colombia','Croatia','Cyprus','Czech Republic','Denmark','Egypt','Estonia','Ethiopia','Fiji','Finland','France','Georgia','Germany','Ghana','Greece','Hong Kong','Hungary','Iceland','India','Indonesia','Iraq','Ireland','Israel','Italy','Japan','Jordan','Kazakhstan','Kenya','Kosovo','Kuwait','Laos','Latvia','Lebanon','Libya','Lithuania','Luxembourg','Macau','Malaysia','Maldives','Malta','Mauritius','Mexico','Moldova','Monaco','Montenegro','Morocco','Myanmar','Nepal','Netherlands','New Zealand','Nigeria','North Macedonia','Norway','Oman','Papua New Guinea','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Saudi Arabia','Serbia','Singapore','Slovakia','Slovenia','South Africa','South Korea','Spain','Sri Lanka','Sweden','Switzerland','Taiwan','Tanzania','Thailand','Tunisia','Turkey','UAE','Uganda','UK','Ukraine','USA','Uzbekistan','Vietnam','Yemen','Other'].sort().map(c=><option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className="form-group" style={{marginBottom:0}}>
