@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [showSaleModal, setShowSaleModal] = useState(false)
   const [showExpModal, setShowExpModal] = useState(false)
-  const [saleForm, setSaleForm] = useState({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money'})
+  const [saleForm, setSaleForm] = useState({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money',country:'',doc_type:'Other'})
   const [expForm, setExpForm] = useState({description:'',amount:'',category:'General'})
   const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
@@ -29,8 +29,8 @@ export default function Dashboard() {
       const { data: newCase } = await createCase({
         client_name: clientName,
         client_phone: saleForm.client_phone || '',
-        country: 'Other',
-        doc_type: 'Other',
+        country: saleForm.country || 'Other',
+        doc_type: saleForm.doc_type || 'Other',
         amount: Number(saleForm.amount),
         tier: 'basic',
         payment_method: saleForm.payment_method,
@@ -57,7 +57,7 @@ export default function Dashboard() {
         }])
       }
     } catch(e) { console.error('Quick sale error:', e) }
-    setSaleForm({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money'})
+    setSaleForm({client_name:'',client_phone:'',amount:'1000',payment_method:'bKash Send Money',country:'',doc_type:'Other'})
     setShowSaleModal(false)
     setSaving(false)
     load(true)
@@ -179,6 +179,21 @@ export default function Dashboard() {
             </div>
             <div className="form-group"><label className="form-label">WhatsApp number (optional)</label>
               <input className="form-input" placeholder="+880 1XXXXXXXXX" value={saleForm.client_phone||''} onChange={e=>setSaleForm(f=>({...f,client_phone:e.target.value}))}/>
+            </div>
+            <div className="form-row">
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Country</label>
+                <select className="form-select" value={saleForm.country} onChange={e=>setSaleForm(f=>({...f,country:e.target.value}))}>
+                  <option value="">Select country</option>
+                  {['Bahrain','Kuwait','Oman','Qatar','Saudi Arabia','UAE','Malaysia','Singapore','Thailand','Cyprus','Germany','Greece','Hungary','Italy','Malta','Poland','Romania','Serbia','UK','Other'].map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Document type</label>
+                <select className="form-select" value={saleForm.doc_type} onChange={e=>setSaleForm(f=>({...f,doc_type:e.target.value}))}>
+                  {['Employment visa','Work permit','Employment contract','Offer letter','Visa + permit bundle','Residence permit','Other'].map(d=><option key={d}>{d}</option>)}
+                </select>
+              </div>
             </div>
             <div className="form-group"><label className="form-label">Amount (৳) *</label>
               <input className="form-input" type="number" placeholder="1000" value={saleForm.amount} onChange={e=>setSaleForm(f=>({...f,amount:e.target.value}))}/>
