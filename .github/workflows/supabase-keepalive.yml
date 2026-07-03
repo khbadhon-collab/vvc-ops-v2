@@ -1,0 +1,18 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Every 3 days at 03:00 UTC — well under Supabase's ~7 day free-tier pause window
+    - cron: '0 3 */3 * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          curl -s -o /dev/null -w "Supabase ping status: %{http_code}\n" \
+            "https://ulpreqvxedabsrhzylzk.supabase.co/rest/v1/cases?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHJlcXZ4ZWRhYnNyaHp5bHprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTU0MjQsImV4cCI6MjA5NjU5MTQyNH0.dW-pAHqodSn0rCSXiYf4qqVjzc7KSYt6bbIl3JTeq2w" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHJlcXZ4ZWRhYnNyaHp5bHprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTU0MjQsImV4cCI6MjA5NjU5MTQyNH0.dW-pAHqodSn0rCSXiYf4qqVjzc7KSYt6bbIl3JTeq2w"
