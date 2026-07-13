@@ -6,28 +6,39 @@ import { supabase } from '../lib/supabase'
 
 const COUNTRIES = [
   // Middle East & Gulf
-  'Bahrain','Iraq','Jordan','Kuwait','Lebanon','Oman','Qatar','Saudi Arabia','UAE','Yemen',
-  // Southeast Asia
-  'Brunei','Cambodia','Indonesia','Laos','Malaysia','Myanmar','Philippines','Singapore','Thailand','Vietnam',
-  // East Asia
-  'China','Hong Kong','Japan','Macau','South Korea','Taiwan',
+  'Bahrain','Iran','Iraq','Israel','Jordan','Kuwait','Lebanon','Oman','Palestine','Qatar','Saudi Arabia','Syria','Turkey','UAE','Yemen',
   // South Asia
-  'India','Maldives','Nepal','Sri Lanka',
+  'Afghanistan','Bangladesh','Bhutan','India','Maldives','Nepal','Pakistan','Sri Lanka',
+  // Southeast Asia
+  'Brunei','Cambodia','Indonesia','Laos','Malaysia','Myanmar','Philippines','Singapore','Thailand','Timor-Leste','Vietnam',
+  // East Asia
+  'China','Hong Kong','Japan','Macau','Mongolia','North Korea','South Korea','Taiwan',
+  // Central Asia & Caucasus
+  'Armenia','Azerbaijan','Georgia','Kazakhstan','Kyrgyzstan','Tajikistan','Turkmenistan','Uzbekistan',
   // Europe - Western
   'Andorra','Austria','Belgium','Denmark','Finland','France','Germany','Greece','Iceland','Ireland',
-  'Italy','Luxembourg','Malta','Monaco','Netherlands','Norway','Portugal','Spain','Sweden','Switzerland','UK',
+  'Italy','Liechtenstein','Luxembourg','Malta','Monaco','Netherlands','Norway','Portugal','San Marino','Spain','Sweden','Switzerland','UK','Vatican City',
   // Europe - Eastern
-  'Albania','Belarus','Bosnia','Bulgaria','Croatia','Cyprus','Czech Republic','Estonia','Georgia',
+  'Albania','Belarus','Bosnia','Bulgaria','Croatia','Cyprus','Czech Republic','Estonia',
   'Hungary','Kosovo','Latvia','Lithuania','Moldova','Montenegro','North Macedonia','Poland',
   'Romania','Russia','Serbia','Slovakia','Slovenia','Ukraine',
-  // Africa
-  'Egypt','Ethiopia','Ghana','Kenya','Libya','Mauritius','Morocco','Nigeria','South Africa','Tanzania','Tunisia','Uganda',
-  // Americas
-  'Argentina','Brazil','Canada','Chile','Colombia','Mexico','Peru','USA',
-  // Oceania
-  'Australia','Fiji','New Zealand','Papua New Guinea',
-  // Other
-  'Israel','Kazakhstan','Turkey','Uzbekistan'
+  // Africa - North
+  'Algeria','Egypt','Libya','Morocco','Sudan','Tunisia',
+  // Africa - Sub-Saharan
+  'Angola','Benin','Botswana','Burkina Faso','Burundi','Cabo Verde','Cameroon','Central African Republic','Chad','Comoros',
+  'Congo (DRC)','Congo (Republic)','Djibouti','Equatorial Guinea','Eritrea','Eswatini','Ethiopia','Gabon','Gambia','Ghana',
+  'Guinea','Guinea-Bissau','Ivory Coast','Kenya','Lesotho','Liberia','Madagascar','Malawi','Mali','Mauritania',
+  'Mauritius','Mozambique','Namibia','Niger','Nigeria','Rwanda','Sao Tome and Principe','Senegal','Seychelles','Sierra Leone',
+  'Somalia','South Africa','South Sudan','Tanzania','Togo','Uganda','Zambia','Zimbabwe',
+  // Americas - North & Central
+  'Antigua and Barbuda','Bahamas','Barbados','Belize','Canada','Costa Rica','Cuba','Dominica','Dominican Republic','El Salvador',
+  'Grenada','Guatemala','Haiti','Honduras','Jamaica','Mexico','Nicaragua','Panama','Saint Kitts and Nevis','Saint Lucia',
+  'Saint Vincent and the Grenadines','Trinidad and Tobago','USA',
+  // Americas - South
+  'Argentina','Bolivia','Brazil','Chile','Colombia','Ecuador','Guyana','Paraguay','Peru','Suriname','Uruguay','Venezuela',
+  // Oceania & Pacific
+  'Australia','Fiji','Kiribati','Marshall Islands','Micronesia','Nauru','New Zealand','Palau','Papua New Guinea',
+  'Samoa','Solomon Islands','Tonga','Tuvalu','Vanuatu'
 ].sort()
 const DOC_TYPES = ['Employment visa','Work permit','Employment contract','Offer letter','Visa + permit bundle','Residence permit','Business visa','Student visa','Other']
 const TIERS = [
