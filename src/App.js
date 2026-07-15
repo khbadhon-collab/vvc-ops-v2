@@ -41,26 +41,35 @@ function ProtectedRoute({ children, page }) {
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [role, setRole] = useState(null)
-  const [customPages, setCustomPages] = useState([])
+  const [role, setRole] = useState(() => localStorage.getItem('vvc_role') || null)
+  const [customPages, setCustomPages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vvc_pages') || '[]') } catch { return [] }
+  })
   const [loading, setLoading] = useState(true)
 
   const loadRole = async (u) => {
-    if (!u) { setRole(null); setCustomPages([]); return }
+    if (!u) {
+      setRole(null); setCustomPages([])
+      localStorage.removeItem('vvc_role'); localStorage.removeItem('vvc_pages')
+      return
+    }
     try {
       const { data } = await supabase.from('user_roles').select('role,custom_pages').eq('user_id', u.id).single()
-      // SECURITY: if no role row is found, fall back to least-privileged role,
-      // NOT admin. Admin must be explicitly granted in user_roles.
-      setRole(data?.role || 'sales')
-      setCustomPages(data?.custom_pages || [])
-    } catch { setRole('sales'); setCustomPages([]) }
+      // SECURITY: if no role row is found, fall back to least-privileged role, NOT admin.
+      const r = data?.role || 'sales'
+      const cp = data?.custom_pages || []
+      setRole(r); setCustomPages(cp)
+      localStorage.setItem('vvc_role', r)
+      localStorage.setItem('vvc_pages', JSON.stringify(cp))
+    } catch { setRole(prev => prev || 'sales') }
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const u = data.session?.user ?? null
       setUser(u)
-      loadRole(u).then(() => setLoading(false))
+      setLoading(false)          // paint immediately — getSession is local
+      loadRole(u)                // role refreshes in the background
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       const u = session?.user ?? null
