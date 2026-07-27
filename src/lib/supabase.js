@@ -13,9 +13,18 @@ export const signOut = () => supabase.auth.signOut()
 
 export const getSession = () => supabase.auth.getSession()
 
-// ── CASES ── 
+// ── CASES ──
+// Lean column set for list/dashboard views. Deliberately excludes
+// report_text, documents (JSONB) and notes — the heaviest columns —
+// since no list page reads them. This is the #1 speed fix: every list
+// page used to pull the FULL row (including full report text + doc
+// metadata) for every case, every time you switched pages. As the
+// cases table grows month over month that gets slower and slower.
+// CaseDetail still uses getCaseById() below, which fetches everything.
+const CASE_LIST_COLUMNS = 'id, case_id, client_name, client_phone, client_email, country, doc_type, tier, amount, qty, status, ai_engine, verdict, payment_status, assigned_to, lead_source, payment_method, completed_at, created_at, updated_at'
+
 export const getCases = () =>
-  supabase.from('cases').select('*').order('created_at', { ascending: false })
+  supabase.from('cases').select(CASE_LIST_COLUMNS).order('created_at', { ascending: false })
 
 export const getCaseById = (id) =>
   supabase.from('cases').select('*').eq('id', id).single()

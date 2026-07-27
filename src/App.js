@@ -32,10 +32,10 @@ const PageLoader = () => (
 )
 
 function ProtectedRoute({ children, page }) {
-  const { user, role, loading } = useAuth()
+  const { user, role, customPages, loading } = useAuth()
   if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" replace />
-  if (page && !hasAccess(role, page)) return <Navigate to="/" replace />
+  if (page && !hasAccess(role, page, customPages)) return <Navigate to="/" replace />
   return children
 }
 
@@ -107,7 +107,7 @@ export default function App() {
               <Route path="marketing" element={<Marketing />} />
               <Route path="social" element={<Social />} />
               <Route path="templates" element={<Templates />} />
-              <Route path="access" element={<ProtectedRoute page="settings"><AccessControl /></ProtectedRoute>} />
+              <Route path="access" element={<ProtectedRoute page="access"><AccessControl /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

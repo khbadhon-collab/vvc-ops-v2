@@ -9,19 +9,22 @@ import {
   MessageCircle, TrendingUp, Share2, Zap, ChevronUp
 } from 'lucide-react'
 
+// Only routes every role can reach with NO permission check (see App.js
+// ProtectedRoute page= props / lib/auth.js ROLES). Anything gated (Finance,
+// Intelligence, Staff, Comms, Marketing, Social, Templates, Settings) is
+// rendered separately below via canSee(), and ONLY there — putting a gated
+// item in this list too used to render it twice and, for non-admin roles,
+// as a dead link that silently bounced back to Dashboard on click.
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
   { label: 'Cases', icon: FolderOpen, path: '/cases' },
   { label: 'New case', icon: FilePlus, path: '/cases/new' },
   { label: 'Invoices', icon: Receipt, path: '/invoices' },
-  { label: 'Finance', icon: BarChart2, path: '/finance' },
-  { label: 'Intelligence', icon: Globe, path: '/intelligence' },
-  { label: 'Staff', icon: Users, path: '/staff' },
-  { label: 'Comms', icon: MessageCircle, path: '/comms' },
-  { label: 'Marketing', icon: TrendingUp, path: '/marketing' },
-  { label: 'Social', icon: Share2, path: '/social' },
 ]
 
+// Mobile bottom nav — must be filtered through canSee() at render time,
+// same as the desktop sidebar. This array intentionally includes gated
+// routes; do not render it unfiltered.
 const bottomNavItems = [
   { label: 'Home', icon: LayoutDashboard, path: '/' },
   { label: 'Cases', icon: FolderOpen, path: '/cases' },
@@ -38,7 +41,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [showScroll, setShowScroll] = useState(false)
-  const { user, role: currentRole } = useAuth()
+  const { user, role: currentRole, customPages } = useAuth()
 
   useEffect(() => {
     const el = document.querySelector('.page')
@@ -53,7 +56,7 @@ export default function Layout() {
     if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
   }
   const roleInfo = ROLES[currentRole] || ROLES.admin
-  const canSee = (path) => hasAccess(currentRole, path)
+  const canSee = (path) => hasAccess(currentRole, path, customPages)
 
   const isActive = (path) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
 
@@ -119,6 +122,13 @@ export default function Layout() {
           </button>
         ))}
 
+        {canSee('finance') && (
+          <>
+            <div className="sidebar-section">Money</div>
+            <button className={`nav-link ${isActive('/finance') ? 'active' : ''}`} onClick={() => go('/finance')}><BarChart2 size={16} /> Finance</button>
+          </>
+        )}
+
         <div className="sidebar-section">Analytics</div>
         {canSee('intelligence') && <button className={`nav-link ${isActive('/intelligence') ? 'active' : ''}`} onClick={() => go('/intelligence')}><Globe size={16} /> Intelligence</button>}
         {canSee('staff') && <button className={`nav-link ${isActive('/staff') ? 'active' : ''}`} onClick={() => go('/staff')}><Users size={16} /> Staff</button>}
@@ -175,7 +185,7 @@ export default function Layout() {
       {/* Bottom nav - mobile only */}
       <nav className="bottom-nav" aria-label="Mobile navigation">
         <div className="bottom-nav-inner">
-          {bottomNavItems.map(({ label, icon: Icon, path }) => (
+          {bottomNavItems.filter(({ path }) => canSee(path)).map(({ label, icon: Icon, path }) => (
             <button
               key={path}
               className={`bottom-nav-item ${isActive(path) ? 'active' : ''}`}
