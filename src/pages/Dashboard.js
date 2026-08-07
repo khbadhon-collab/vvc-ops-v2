@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCases, getInvoices, getExpenses, createCase, createInvoice, buildWhatsAppLink, waFollowUp, waReviewRequest, supabase } from '../lib/supabase'
-import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, TrendingDown, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2, Tags, FolderOpen, Coins } from 'lucide-react'
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -264,7 +264,7 @@ export default function Dashboard() {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
         <div onClick={()=>navigate('/invoices')} style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-            <span style={{fontSize:18,color:'#15803D'}}>↓</span>
+            <TrendingDown size={15} color="#15803D" strokeWidth={2.5}/>
             <span style={{fontSize:11,color:'#15803D',fontWeight:600}}>To Receive</span>
           </div>
           <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{outstanding.toLocaleString()}</div>
@@ -272,7 +272,7 @@ export default function Dashboard() {
         </div>
         <div onClick={()=>navigate('/finance')} style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-            <span style={{fontSize:18,color:'#B91C1C'}}>↑</span>
+            <TrendingUp size={15} color="#B91C1C" strokeWidth={2.5}/>
             <span style={{fontSize:11,color:'#B91C1C',fontWeight:600}}>Expense ({monthName})</span>
           </div>
           <div style={{fontSize:22,fontWeight:800,color:'#B91C1C'}}>৳{thisMonthExpenses.toLocaleString()}</div>
@@ -280,7 +280,7 @@ export default function Dashboard() {
         </div>
         <div onClick={()=>navigate('/finance')} style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-            <span style={{fontSize:18}}>🏷</span>
+            <Tags size={15} color="#1D4ED8" strokeWidth={2.5}/>
             <span style={{fontSize:11,color:'#1D4ED8',fontWeight:600}}>Sales ({monthName})</span>
           </div>
           <div style={{fontSize:22,fontWeight:800,color:'#1D4ED8'}}>৳{thisMonthIncome.toLocaleString()}</div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
         </div>
         <div onClick={()=>navigate('/cases')} style={{background:'#F0F9FF',border:'1px solid #BAE6FD',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
-            <span style={{fontSize:18}}>🛒</span>
+            <FolderOpen size={15} color="#0369A1" strokeWidth={2.5}/>
             <span style={{fontSize:11,color:'#0369A1',fontWeight:600}}>Active Cases</span>
           </div>
           <div style={{fontSize:22,fontWeight:800,color:'#0369A1'}}>{active}</div>

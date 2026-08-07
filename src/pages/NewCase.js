@@ -70,20 +70,28 @@ export default function NewCase() {
     referred_by: ''
   })
   const [qty, setQty] = useState(1)
+  const [customPrice, setCustomPrice] = useState(false)
+  const [customAmount, setCustomAmount] = useState('')
+  const [discountReason, setDiscountReason] = useState('')
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const tier = TIERS.find(t => t.key === form.tier) || TIERS[0]
-  const totalAmount = tier.price * qty
+  const standardAmount = tier.price * qty
+  const totalAmount = (customPrice && customAmount !== '') ? Number(customAmount) : standardAmount
 
   const handleSubmit = async () => {
     setError('')
     setSaving(true)
     // Apply defaults for optional fields
+    const discountNote = (customPrice && customAmount !== '' && Number(customAmount) !== standardAmount)
+      ? `[Custom price: ৳${Number(customAmount).toLocaleString()} instead of ৳${standardAmount.toLocaleString()}${discountReason ? ' — Reason: ' + discountReason : ''}]`
+      : ''
     const finalForm = {
       ...form,
       client_name: form.client_name.trim() || 'প্রিয় গ্রাহক',
       country: form.country || 'Other',
       doc_type: form.doc_type || 'Other',
+      notes: [form.notes, discountNote].filter(Boolean).join('\n'),
     }
     try {
       const { data: newCase, error: caseErr } = await createCase({
@@ -277,10 +285,44 @@ export default function NewCase() {
                   <button type="button" onClick={() => setQty(q => Math.max(1, q-1))} style={{ width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border2)', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                   <span style={{ fontSize: 24, fontWeight: 700, minWidth: 30, textAlign: 'center' }}>{qty}</span>
                   <button type="button" onClick={() => setQty(q => Math.min(20, q+1))} style={{ width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border2)', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>× ৳{tier.price.toLocaleString()} = <strong style={{ color: 'var(--navy)', fontSize: 15 }}>৳{totalAmount.toLocaleString()}</strong></span>
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>× ৳{tier.price.toLocaleString()} = <strong style={{ color: 'var(--navy)', fontSize: 15 }}>৳{standardAmount.toLocaleString()}</strong></span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="card mb-12">
+            <div className="card-header">
+              <span>Price override</span>
+              <button
+                type="button"
+                onClick={() => { setCustomPrice(v => !v); if (!customPrice) setCustomAmount(String(standardAmount)) }}
+                style={{ fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: '1px solid', cursor: 'pointer',
+                  background: customPrice ? 'var(--navy)' : '#fff', borderColor: customPrice ? 'var(--navy)' : 'var(--border2)', color: customPrice ? '#fff' : 'var(--text2)' }}>
+                {customPrice ? 'Custom price ON' : 'Apply discount / custom price'}
+              </button>
+            </div>
+            {customPrice && (
+              <div className="card-body">
+                <div className="form-row">
+                  <div className="form-group" style={{marginBottom:0}}>
+                    <label className="form-label">Final amount (৳)</label>
+                    <input className="form-input" type="number" min="0" value={customAmount} onChange={e => setCustomAmount(e.target.value)} placeholder={String(standardAmount)} />
+                  </div>
+                  <div className="form-group" style={{marginBottom:0}}>
+                    <label className="form-label">Reason (optional)</label>
+                    <input className="form-input" value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="e.g. loyal client, bulk case" />
+                  </div>
+                </div>
+                {customAmount !== '' && Number(customAmount) !== standardAmount && (
+                  <div style={{marginTop:8,fontSize:12,color: Number(customAmount) < standardAmount ? 'var(--success)' : 'var(--warning)', fontWeight:600}}>
+                    {Number(customAmount) < standardAmount
+                      ? `Discount: ৳${(standardAmount - Number(customAmount)).toLocaleString()} off standard price`
+                      : `৳${(Number(customAmount) - standardAmount).toLocaleString()} above standard price`}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="card mb-12">
@@ -301,6 +343,10 @@ export default function NewCase() {
             </div>
           </div>
 
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', marginBottom:10, background:'var(--info-bg)', borderRadius:8 }}>
+            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--navy)' }}>Amount to charge</span>
+            <span style={{ fontSize:18, fontWeight:800, color:'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <button className="btn btn-full" onClick={() => setStep(1)}>← Back</button>
             <button className="btn btn-primary btn-full" style={{ padding: 12 }} onClick={handleSubmit} disabled={saving}>

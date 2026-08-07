@@ -5,6 +5,14 @@ import { Download, MessageCircle, CheckCircle, Info, ChevronLeft, FileText, Edit
 
 const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
 const STATUS_OPTIONS = ['new','pending','progress','suspicious','manipulated','done']
+// Same exact strings Intelligence.js matches on (v.includes('FRAUDULENT') / 'SUSPICIOUS' / 'GENUINE') —
+// keep these in sync with src/pages/Intelligence.js VERDICTS if either ever changes.
+const VERDICT_OPTIONS = [
+  { key:'GENUINE', label:'✅ Original', color:'#15803D', bg:'#F0FDF4', border:'#BBF7D0' },
+  { key:'SUSPICIOUS', label:'⚠️ Suspicious', color:'#B45309', bg:'#FFFBEB', border:'#FDE68A' },
+  { key:'CONFIRMED FRAUDULENT', label:'🚫 Fraud / Fake', color:'#B91C1C', bg:'#FEF2F2', border:'#FECACA' },
+  { key:'UNABLE TO VERIFY', label:'❓ Unable to verify', color:'#475569', bg:'#F8FAFC', border:'#E2E8F0' },
+]
 
 export default function CaseDetail() {
   const { id } = useParams()
@@ -38,6 +46,12 @@ export default function CaseDetail() {
       if (data.notes) setNotes(data.notes)
       setEditData({ client_name:data.client_name, client_phone:data.client_phone||'', client_email:data.client_email||'', country:data.country, doc_type:data.doc_type, amount:data.amount, status:data.status||'new', verdict:data.verdict||'' })
     }
+  }
+
+  const setVerdict = async (v) => {
+    await updateCase(id, { verdict: v })
+    await loadCase()
+    showSuccess('Verdict set: ' + v)
   }
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(()=>setSuccess(''),3000) }
@@ -204,6 +218,30 @@ export default function CaseDetail() {
       )}
 
 
+
+      {/* ── VERDICT — quick classify so Intelligence dashboard can count fraud/suspicious cases ── */}
+      <div className="card mb-12">
+        <div className="card-header">
+          🔍 Document verdict
+          {c.verdict && (
+            <span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,
+              background:(VERDICT_OPTIONS.find(v=>v.key===c.verdict)||{}).bg||'var(--surface2)',
+              color:(VERDICT_OPTIONS.find(v=>v.key===c.verdict)||{}).color||'var(--text2)'}}>
+              {c.verdict}
+            </span>
+          )}
+        </div>
+        <div style={{padding:'12px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+          {VERDICT_OPTIONS.map(v => (
+            <button key={v.key} onClick={()=>setVerdict(v.key)} style={{
+              padding:'10px 8px', borderRadius:8, border: c.verdict===v.key ? `2px solid ${v.color}` : '1px solid var(--border)',
+              background: c.verdict===v.key ? v.bg : '#fff', color: v.color, fontWeight:700, fontSize:12.5, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:6, textAlign:'center'
+            }}>{v.label}</button>
+          ))}
+        </div>
+        <div style={{padding:'0 16px 12px', fontSize:11.5, color:'var(--text3)'}}>Sets the case verdict used for fraud stats on the Intelligence page.</div>
+      </div>
 
       {/* ── SECTION 1: Payment ── */}
       <div className="card mb-12">

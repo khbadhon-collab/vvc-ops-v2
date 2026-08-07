@@ -7,6 +7,7 @@ import { CheckCircle, MessageCircle, Plus, Trash2, Edit2, Download } from 'lucid
 export function Invoices() {
   const [invoices, setInvoices] = useState([])
   const [filter, setFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = useState('current') // 'all' | 'current' | 'YYYY-MM'
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [editInv, setEditInv] = useState(null)
   const [editData, setEditData] = useState({})
@@ -89,6 +90,17 @@ export function Invoices() {
   const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter)
   const paid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
   const unpaid = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.amount, 0)
+
+  // ── Month grouping ──
+  const nowD = new Date()
+  const currentMonthKey = `${nowD.getFullYear()}-${String(nowD.getMonth()+1).padStart(2,'0')}`
+  const monthKeyOf = (inv) => (inv.created_at || '').slice(0,7)
+  const availableMonths = Array.from(new Set(invoices.map(monthKeyOf).filter(Boolean))).sort((a,b)=>b.localeCompare(a))
+  const monthLabelOf = (key) => {
+    const [y,m] = key.split('-').map(Number)
+    return new Date(y, m-1, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})
+  }
+  const monthFiltered = monthFilter === 'all' ? filtered : filtered.filter(i => monthKeyOf(i) === (monthFilter === 'current' ? currentMonthKey : monthFilter))
 
   const handleMarkPaid = async (inv) => {
     await markInvoicePaid(inv.id, editData.payment_method || inv.payment_method)
@@ -269,7 +281,7 @@ export function Invoices() {
         <div className="metric-card"><div className="metric-label">Outstanding</div><div className="metric-value amber">৳{unpaid.toLocaleString()}</div></div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
         {['all','paid','unpaid','overdue'].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding: '5px 12px', borderRadius: 20, border: '1px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -278,6 +290,16 @@ export function Invoices() {
             color: filter === f ? '#fff' : 'var(--text2)',
           }}>{f.charAt(0).toUpperCase() + f.slice(1)}</button>
         ))}
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <select className="form-select" value={monthFilter} onChange={e=>setMonthFilter(e.target.value)} style={{fontSize:12.5,fontWeight:600,padding:'7px 10px',width:'auto',minWidth:180}}>
+          <option value="current">This month ({monthLabelOf(currentMonthKey)})</option>
+          <option value="all">All months</option>
+          {availableMonths.filter(k=>k!==currentMonthKey).map(k => (
+            <option key={k} value={k}>{monthLabelOf(k)}</option>
+          ))}
+        </select>
       </div>
 
       {addingInv ? (
@@ -331,8 +353,8 @@ export function Invoices() {
           <div style={{textAlign:'right'}}>Amount</div>
           <div style={{textAlign:'center'}}>Actions</div>
         </div>
-        {filtered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet.<br/>Click "+ Add manually" or "Sync from cases" above.</div>}
-        {filtered.map((inv,idx) => (
+        {monthFiltered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices for this period.<br/>Try "All months" or click "+ Add manually" above.</div>}
+        {monthFiltered.map((inv,idx) => (
           <div key={inv.id} style={{display:'grid',gridTemplateColumns:'50px 1fr 90px 70px 90px 130px',gap:0,padding:'12px 16px',borderBottom:'1px solid var(--border)',alignItems:'center',background:idx%2===0?'#fff':'#FAFBFC'}}>
             {/* Invoice No - show sequential number */}
             <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>{inv.invoice_number?.split('-').pop()?.slice(-4) || idx+1}</div>
@@ -374,10 +396,10 @@ export function Invoices() {
             </div>
           </div>
         ))}
-        {filtered.length > 0 && (
+        {monthFiltered.length > 0 && (
           <div style={{padding:'10px 16px',background:'var(--surface2)',borderTop:'2px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} invoice{filtered.length!==1?'s':''}</div>
-            <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>Total: ৳{filtered.reduce((s,i)=>s+Number(i.amount||0),0).toLocaleString()}</div>
+            <div style={{fontSize:12,color:'var(--text2)'}}>{monthFiltered.length} invoice{monthFiltered.length!==1?'s':''}</div>
+            <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>Total: ৳{monthFiltered.reduce((s,i)=>s+Number(i.amount||0),0).toLocaleString()}</div>
           </div>
         )}
       </div>
@@ -442,6 +464,31 @@ export function Finance() {
 
   const cats = {}
   expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
+
+  // ── Monthly statements: group paid invoices (income) + expenses by YYYY-MM ──
+  const [expandedMonth, setExpandedMonth] = useState(null)
+  const monthKey = (dateStr) => (dateStr || '').slice(0, 7) // 'YYYY-MM'
+  const monthLabel = (key) => {
+    if (!key) return 'Unknown'
+    const [y, m] = key.split('-').map(Number)
+    return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  }
+  const monthlyStats = {}
+  invoices.filter(i => i.status === 'paid').forEach(i => {
+    const k = monthKey(i.paid_at || i.created_at)
+    if (!k) return
+    if (!monthlyStats[k]) monthlyStats[k] = { income: 0, expense: 0, incomeTx: [], expenseTx: [] }
+    monthlyStats[k].income += Number(i.amount || 0)
+    monthlyStats[k].incomeTx.push({ label: i.client_name, sub: i.invoice_number, amount: Number(i.amount || 0), date: i.paid_at || i.created_at })
+  })
+  expenses.forEach(e => {
+    const k = monthKey(e.date || e.created_at)
+    if (!k) return
+    if (!monthlyStats[k]) monthlyStats[k] = { income: 0, expense: 0, incomeTx: [], expenseTx: [] }
+    monthlyStats[k].expense += Number(e.amount || 0)
+    monthlyStats[k].expenseTx.push({ label: e.description, sub: e.category, amount: Number(e.amount || 0), date: e.date || e.created_at })
+  })
+  const monthsSorted = Object.keys(monthlyStats).sort((a, b) => b.localeCompare(a))
 
   const handleAddExpense = async () => {
     if (!newExp.description || !newExp.amount) return
@@ -510,7 +557,7 @@ export function Finance() {
         </div>
       )}
 
-      {['summary','p&l','expenses'].map(t => (
+      {['summary','monthly','p&l','expenses'].map(t => (
           <button key={t} className={`tab-btn ${tab===t?'active':''}`} onClick={() => setTab(t)}>
             {t === 'p&l' ? 'P&L' : t.charAt(0).toUpperCase()+t.slice(1)}
           </button>
@@ -628,6 +675,63 @@ export function Finance() {
               {income === 0 && <div style={{fontSize:13,color:'var(--text3)'}}>No paid invoices yet</div>}
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === 'monthly' && (
+        <div>
+          {monthsSorted.length === 0 && (
+            <div className="card"><div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No income or expenses recorded yet</div></div>
+          )}
+          {monthsSorted.map(k => {
+            const m = monthlyStats[k]
+            const net = m.income - m.expense
+            const isOpen = expandedMonth === k
+            const allTx = [...m.incomeTx.map(t=>({...t,type:'in'})), ...m.expenseTx.map(t=>({...t,type:'out'}))].sort((a,b)=>new Date(b.date)-new Date(a.date))
+            return (
+              <div key={k} className="card mb-10">
+                <div onClick={()=>setExpandedMonth(isOpen ? null : k)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>{monthLabel(k)}</div>
+                    <div style={{fontSize:11.5,color:'var(--text3)',marginTop:2}}>{m.incomeTx.length} sale{m.incomeTx.length!==1?'s':''} · {m.expenseTx.length} expense{m.expenseTx.length!==1?'s':''}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <div style={{fontWeight:800,fontSize:16,color: net>=0 ? 'var(--success)' : 'var(--danger)'}}>৳{net.toLocaleString()}</div>
+                    <div style={{fontSize:10.5,color:'var(--text3)'}}>{isOpen ? 'Tap to collapse ▲' : 'Tap to expand ▼'}</div>
+                  </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,borderTop:'1px solid var(--border)'}}>
+                  <div style={{padding:'8px 16px',borderRight:'1px solid var(--border)'}}>
+                    <div style={{fontSize:10.5,color:'var(--success)',fontWeight:700,textTransform:'uppercase'}}>Income</div>
+                    <div style={{fontSize:14,fontWeight:700,color:'var(--success)'}}>৳{m.income.toLocaleString()}</div>
+                  </div>
+                  <div style={{padding:'8px 16px'}}>
+                    <div style={{fontSize:10.5,color:'var(--danger)',fontWeight:700,textTransform:'uppercase'}}>Expenses</div>
+                    <div style={{fontSize:14,fontWeight:700,color:'var(--danger)'}}>৳{m.expense.toLocaleString()}</div>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div style={{borderTop:'1px solid var(--border)'}}>
+                    {allTx.length === 0 && <div style={{padding:16,textAlign:'center',color:'var(--text3)',fontSize:12.5}}>No transactions</div>}
+                    {allTx.map((t,i) => (
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 16px',borderTop:i>0?'1px solid var(--border)':'none'}}>
+                        <div style={{width:26,height:26,borderRadius:'50%',background:t.type==='in'?'#F0FDF4':'#FEF2F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:t.type==='in'?'var(--success)':'var(--danger)',fontWeight:700,fontSize:12}}>
+                          {t.type==='in'?'↓':'↑'}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:600,fontSize:12.5}}>{t.label}</div>
+                          <div style={{fontSize:11,color:'var(--text3)'}}>{t.sub} · {new Date(t.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div>
+                        </div>
+                        <div style={{fontWeight:700,fontSize:12.5,color:t.type==='in'?'var(--success)':'var(--danger)'}}>
+                          {t.type==='in'?'+':'-'}৳{t.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
