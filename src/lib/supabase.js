@@ -9,6 +9,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 export const signIn = (email, password) =>
   supabase.auth.signInWithPassword({ email, password })
 
+export const resetPasswordForEmail = (email) =>
+  supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password' })
+
+export const updatePassword = (newPassword) =>
+  supabase.auth.updateUser({ password: newPassword })
+
 export const signOut = () => supabase.auth.signOut()
 
 export const getSession = () => supabase.auth.getSession()

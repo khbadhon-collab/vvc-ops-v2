@@ -6,6 +6,7 @@ import './styles/index.css'
 
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 
 // Lazy-load pages so the first paint only ships what's needed.
 // Heavy libs (jspdf, html2canvas) now load only when their page opens.
@@ -93,6 +94,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="cases" element={<Cases />} />
