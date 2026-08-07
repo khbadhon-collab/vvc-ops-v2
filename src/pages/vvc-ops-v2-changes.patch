@@ -1,0 +1,421 @@
+diff --git a/public/index.html b/public/index.html
+index e0d46fe7..90fdd438 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -6,6 +6,10 @@
+   <meta name="theme-color" content="#0F4C81"/>
+   <meta name="apple-mobile-web-app-capable" content="yes"/>
+   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
++  <meta name="apple-mobile-web-app-title" content="VVC Ops"/>
++  <link rel="icon" href="%PUBLIC_URL%/favicon.ico"/>
++  <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/icon-192.png"/>
++  <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon-180.png"/>
+   <title>VVC Ops</title>
+   <link rel="preconnect" href="https://ulpreqvxedabsrhzylzk.supabase.co" crossorigin/>
+     <link rel="dns-prefetch" href="https://ulpreqvxedabsrhzylzk.supabase.co"/>
+diff --git a/public/manifest.json b/public/manifest.json
+index 474d8f3f..ce0060f9 100644
+--- a/public/manifest.json
++++ b/public/manifest.json
+@@ -6,6 +6,9 @@
+   "theme_color": "#0F4C81",
+   "background_color": "#F8FAFC",
+   "icons": [
+-    {"src": "favicon.ico", "sizes": "64x64", "type": "image/x-icon"}
++    {"src": "favicon.ico", "sizes": "16x16 32x32 48x48", "type": "image/x-icon"},
++    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
++    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
++    {"src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+   ]
+ }
+diff --git a/src/pages/CaseDetail.js b/src/pages/CaseDetail.js
+index 2917c86d..05837845 100644
+--- a/src/pages/CaseDetail.js
++++ b/src/pages/CaseDetail.js
+@@ -5,6 +5,14 @@ import { Download, MessageCircle, CheckCircle, Info, ChevronLeft, FileText, Edit
+ 
+ const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
+ const STATUS_OPTIONS = ['new','pending','progress','suspicious','manipulated','done']
++// Same exact strings Intelligence.js matches on (v.includes('FRAUDULENT') / 'SUSPICIOUS' / 'GENUINE') —
++// keep these in sync with src/pages/Intelligence.js VERDICTS if either ever changes.
++const VERDICT_OPTIONS = [
++  { key:'GENUINE', label:'✅ Original', color:'#15803D', bg:'#F0FDF4', border:'#BBF7D0' },
++  { key:'SUSPICIOUS', label:'⚠️ Suspicious', color:'#B45309', bg:'#FFFBEB', border:'#FDE68A' },
++  { key:'CONFIRMED FRAUDULENT', label:'🚫 Fraud / Fake', color:'#B91C1C', bg:'#FEF2F2', border:'#FECACA' },
++  { key:'UNABLE TO VERIFY', label:'❓ Unable to verify', color:'#475569', bg:'#F8FAFC', border:'#E2E8F0' },
++]
+ 
+ export default function CaseDetail() {
+   const { id } = useParams()
+@@ -40,6 +48,12 @@ export default function CaseDetail() {
+     }
+   }
+ 
++  const setVerdict = async (v) => {
++    await updateCase(id, { verdict: v })
++    await loadCase()
++    showSuccess('Verdict set: ' + v)
++  }
++
+   const showSuccess = (msg) => { setSuccess(msg); setTimeout(()=>setSuccess(''),3000) }
+   const showError = (msg) => { setError(msg); setTimeout(()=>setError(''),4000) }
+ 
+@@ -205,6 +219,30 @@ export default function CaseDetail() {
+ 
+ 
+ 
++      {/* ── VERDICT — quick classify so Intelligence dashboard can count fraud/suspicious cases ── */}
++      <div className="card mb-12">
++        <div className="card-header">
++          🔍 Document verdict
++          {c.verdict && (
++            <span style={{fontSize:11,fontWeight:700,padding:'2px 9px',borderRadius:20,
++              background:(VERDICT_OPTIONS.find(v=>v.key===c.verdict)||{}).bg||'var(--surface2)',
++              color:(VERDICT_OPTIONS.find(v=>v.key===c.verdict)||{}).color||'var(--text2)'}}>
++              {c.verdict}
++            </span>
++          )}
++        </div>
++        <div style={{padding:'12px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
++          {VERDICT_OPTIONS.map(v => (
++            <button key={v.key} onClick={()=>setVerdict(v.key)} style={{
++              padding:'10px 8px', borderRadius:8, border: c.verdict===v.key ? `2px solid ${v.color}` : '1px solid var(--border)',
++              background: c.verdict===v.key ? v.bg : '#fff', color: v.color, fontWeight:700, fontSize:12.5, cursor:'pointer',
++              display:'flex', alignItems:'center', justifyContent:'center', gap:6, textAlign:'center'
++            }}>{v.label}</button>
++          ))}
++        </div>
++        <div style={{padding:'0 16px 12px', fontSize:11.5, color:'var(--text3)'}}>Sets the case verdict used for fraud stats on the Intelligence page.</div>
++      </div>
++
+       {/* ── SECTION 1: Payment ── */}
+       <div className="card mb-12">
+         <div className="card-header">
+diff --git a/src/pages/Dashboard.js b/src/pages/Dashboard.js
+index d1e7d292..448db552 100644
+--- a/src/pages/Dashboard.js
++++ b/src/pages/Dashboard.js
+@@ -1,7 +1,7 @@
+ import React, { useState, useEffect } from 'react'
+ import { useNavigate } from 'react-router-dom'
+ import { getCases, getInvoices, getExpenses, createCase, createInvoice, buildWhatsAppLink, waFollowUp, waReviewRequest, supabase } from '../lib/supabase'
+-import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2 } from 'lucide-react'
++import { AlertTriangle, Plus, ChevronRight, FileCheck, TrendingUp, TrendingDown, Users, Globe, MessageCircle, Clock, Star, RefreshCw, Receipt, Wallet, Edit2, Trash2, Tags, FolderOpen, Coins } from 'lucide-react'
+ 
+ const statusLabel = { pending:'Awaiting docs', progress:'In review', suspicious:'Suspicious', manipulated:'Manipulated', done:'Delivered', new:'New' }
+ const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+@@ -264,7 +264,7 @@ export default function Dashboard() {
+       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+         <div onClick={()=>navigate('/invoices')} style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+-            <span style={{fontSize:18,color:'#15803D'}}>↓</span>
++            <TrendingDown size={15} color="#15803D" strokeWidth={2.5}/>
+             <span style={{fontSize:11,color:'#15803D',fontWeight:600}}>To Receive</span>
+           </div>
+           <div style={{fontSize:22,fontWeight:800,color:'#15803D'}}>৳{outstanding.toLocaleString()}</div>
+@@ -272,7 +272,7 @@ export default function Dashboard() {
+         </div>
+         <div onClick={()=>navigate('/finance')} style={{background:'#FEF2F2',border:'1px solid #FECACA',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+-            <span style={{fontSize:18,color:'#B91C1C'}}>↑</span>
++            <TrendingUp size={15} color="#B91C1C" strokeWidth={2.5}/>
+             <span style={{fontSize:11,color:'#B91C1C',fontWeight:600}}>Expense ({monthName})</span>
+           </div>
+           <div style={{fontSize:22,fontWeight:800,color:'#B91C1C'}}>৳{thisMonthExpenses.toLocaleString()}</div>
+@@ -280,7 +280,7 @@ export default function Dashboard() {
+         </div>
+         <div onClick={()=>navigate('/finance')} style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+-            <span style={{fontSize:18}}>🏷</span>
++            <Tags size={15} color="#1D4ED8" strokeWidth={2.5}/>
+             <span style={{fontSize:11,color:'#1D4ED8',fontWeight:600}}>Sales ({monthName})</span>
+           </div>
+           <div style={{fontSize:22,fontWeight:800,color:'#1D4ED8'}}>৳{thisMonthIncome.toLocaleString()}</div>
+@@ -288,7 +288,7 @@ export default function Dashboard() {
+         </div>
+         <div onClick={()=>navigate('/cases')} style={{background:'#F0F9FF',border:'1px solid #BAE6FD',borderRadius:12,padding:'14px 16px',cursor:'pointer'}}>
+           <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+-            <span style={{fontSize:18}}>🛒</span>
++            <FolderOpen size={15} color="#0369A1" strokeWidth={2.5}/>
+             <span style={{fontSize:11,color:'#0369A1',fontWeight:600}}>Active Cases</span>
+           </div>
+           <div style={{fontSize:22,fontWeight:800,color:'#0369A1'}}>{active}</div>
+diff --git a/src/pages/FinanceInvoicesSettings.js b/src/pages/FinanceInvoicesSettings.js
+index 2094c21e..850757f0 100644
+--- a/src/pages/FinanceInvoicesSettings.js
++++ b/src/pages/FinanceInvoicesSettings.js
+@@ -7,6 +7,7 @@ import { CheckCircle, MessageCircle, Plus, Trash2, Edit2, Download } from 'lucid
+ export function Invoices() {
+   const [invoices, setInvoices] = useState([])
+   const [filter, setFilter] = useState('all')
++  const [monthFilter, setMonthFilter] = useState('current') // 'all' | 'current' | 'YYYY-MM'
+   const [confirmDelete, setConfirmDelete] = useState(null)
+   const [editInv, setEditInv] = useState(null)
+   const [editData, setEditData] = useState({})
+@@ -90,6 +91,17 @@ export function Invoices() {
+   const paid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0)
+   const unpaid = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.amount, 0)
+ 
++  // ── Month grouping ──
++  const nowD = new Date()
++  const currentMonthKey = `${nowD.getFullYear()}-${String(nowD.getMonth()+1).padStart(2,'0')}`
++  const monthKeyOf = (inv) => (inv.created_at || '').slice(0,7)
++  const availableMonths = Array.from(new Set(invoices.map(monthKeyOf).filter(Boolean))).sort((a,b)=>b.localeCompare(a))
++  const monthLabelOf = (key) => {
++    const [y,m] = key.split('-').map(Number)
++    return new Date(y, m-1, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'})
++  }
++  const monthFiltered = monthFilter === 'all' ? filtered : filtered.filter(i => monthKeyOf(i) === (monthFilter === 'current' ? currentMonthKey : monthFilter))
++
+   const handleMarkPaid = async (inv) => {
+     await markInvoicePaid(inv.id, editData.payment_method || inv.payment_method)
+     await loadInvoices()
+@@ -269,7 +281,7 @@ export function Invoices() {
+         <div className="metric-card"><div className="metric-label">Outstanding</div><div className="metric-value amber">৳{unpaid.toLocaleString()}</div></div>
+       </div>
+ 
+-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
++      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
+         {['all','paid','unpaid','overdue'].map(f => (
+           <button key={f} onClick={() => setFilter(f)} style={{
+             padding: '5px 12px', borderRadius: 20, border: '1px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+@@ -280,6 +292,16 @@ export function Invoices() {
+         ))}
+       </div>
+ 
++      <div style={{ marginBottom: 14 }}>
++        <select className="form-select" value={monthFilter} onChange={e=>setMonthFilter(e.target.value)} style={{fontSize:12.5,fontWeight:600,padding:'7px 10px',width:'auto',minWidth:180}}>
++          <option value="current">This month ({monthLabelOf(currentMonthKey)})</option>
++          <option value="all">All months</option>
++          {availableMonths.filter(k=>k!==currentMonthKey).map(k => (
++            <option key={k} value={k}>{monthLabelOf(k)}</option>
++          ))}
++        </select>
++      </div>
++
+       {addingInv ? (
+         <div className="card mb-12">
+           <div className="card-header">Add invoice manually</div>
+@@ -331,8 +353,8 @@ export function Invoices() {
+           <div style={{textAlign:'right'}}>Amount</div>
+           <div style={{textAlign:'center'}}>Actions</div>
+         </div>
+-        {filtered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices yet.<br/>Click "+ Add manually" or "Sync from cases" above.</div>}
+-        {filtered.map((inv,idx) => (
++        {monthFiltered.length === 0 && <div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No invoices for this period.<br/>Try "All months" or click "+ Add manually" above.</div>}
++        {monthFiltered.map((inv,idx) => (
+           <div key={inv.id} style={{display:'grid',gridTemplateColumns:'50px 1fr 90px 70px 90px 130px',gap:0,padding:'12px 16px',borderBottom:'1px solid var(--border)',alignItems:'center',background:idx%2===0?'#fff':'#FAFBFC'}}>
+             {/* Invoice No - show sequential number */}
+             <div style={{fontSize:12,fontWeight:700,color:'var(--navy)'}}>{inv.invoice_number?.split('-').pop()?.slice(-4) || idx+1}</div>
+@@ -374,10 +396,10 @@ export function Invoices() {
+             </div>
+           </div>
+         ))}
+-        {filtered.length > 0 && (
++        {monthFiltered.length > 0 && (
+           <div style={{padding:'10px 16px',background:'var(--surface2)',borderTop:'2px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+-            <div style={{fontSize:12,color:'var(--text2)'}}>{filtered.length} invoice{filtered.length!==1?'s':''}</div>
+-            <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>Total: ৳{filtered.reduce((s,i)=>s+Number(i.amount||0),0).toLocaleString()}</div>
++            <div style={{fontSize:12,color:'var(--text2)'}}>{monthFiltered.length} invoice{monthFiltered.length!==1?'s':''}</div>
++            <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>Total: ৳{monthFiltered.reduce((s,i)=>s+Number(i.amount||0),0).toLocaleString()}</div>
+           </div>
+         )}
+       </div>
+@@ -443,6 +465,31 @@ export function Finance() {
+   const cats = {}
+   expenses.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
+ 
++  // ── Monthly statements: group paid invoices (income) + expenses by YYYY-MM ──
++  const [expandedMonth, setExpandedMonth] = useState(null)
++  const monthKey = (dateStr) => (dateStr || '').slice(0, 7) // 'YYYY-MM'
++  const monthLabel = (key) => {
++    if (!key) return 'Unknown'
++    const [y, m] = key.split('-').map(Number)
++    return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
++  }
++  const monthlyStats = {}
++  invoices.filter(i => i.status === 'paid').forEach(i => {
++    const k = monthKey(i.paid_at || i.created_at)
++    if (!k) return
++    if (!monthlyStats[k]) monthlyStats[k] = { income: 0, expense: 0, incomeTx: [], expenseTx: [] }
++    monthlyStats[k].income += Number(i.amount || 0)
++    monthlyStats[k].incomeTx.push({ label: i.client_name, sub: i.invoice_number, amount: Number(i.amount || 0), date: i.paid_at || i.created_at })
++  })
++  expenses.forEach(e => {
++    const k = monthKey(e.date || e.created_at)
++    if (!k) return
++    if (!monthlyStats[k]) monthlyStats[k] = { income: 0, expense: 0, incomeTx: [], expenseTx: [] }
++    monthlyStats[k].expense += Number(e.amount || 0)
++    monthlyStats[k].expenseTx.push({ label: e.description, sub: e.category, amount: Number(e.amount || 0), date: e.date || e.created_at })
++  })
++  const monthsSorted = Object.keys(monthlyStats).sort((a, b) => b.localeCompare(a))
++
+   const handleAddExpense = async () => {
+     if (!newExp.description || !newExp.amount) return
+     setSaving(true)
+@@ -510,7 +557,7 @@ export function Finance() {
+         </div>
+       )}
+ 
+-      {['summary','p&l','expenses'].map(t => (
++      {['summary','monthly','p&l','expenses'].map(t => (
+           <button key={t} className={`tab-btn ${tab===t?'active':''}`} onClick={() => setTab(t)}>
+             {t === 'p&l' ? 'P&L' : t.charAt(0).toUpperCase()+t.slice(1)}
+           </button>
+@@ -631,6 +678,63 @@ export function Finance() {
+         </div>
+       )}
+ 
++      {tab === 'monthly' && (
++        <div>
++          {monthsSorted.length === 0 && (
++            <div className="card"><div style={{padding:32,textAlign:'center',color:'var(--text3)',fontSize:13}}>No income or expenses recorded yet</div></div>
++          )}
++          {monthsSorted.map(k => {
++            const m = monthlyStats[k]
++            const net = m.income - m.expense
++            const isOpen = expandedMonth === k
++            const allTx = [...m.incomeTx.map(t=>({...t,type:'in'})), ...m.expenseTx.map(t=>({...t,type:'out'}))].sort((a,b)=>new Date(b.date)-new Date(a.date))
++            return (
++              <div key={k} className="card mb-10">
++                <div onClick={()=>setExpandedMonth(isOpen ? null : k)} style={{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
++                  <div>
++                    <div style={{fontWeight:700,fontSize:14,color:'var(--navy)'}}>{monthLabel(k)}</div>
++                    <div style={{fontSize:11.5,color:'var(--text3)',marginTop:2}}>{m.incomeTx.length} sale{m.incomeTx.length!==1?'s':''} · {m.expenseTx.length} expense{m.expenseTx.length!==1?'s':''}</div>
++                  </div>
++                  <div style={{textAlign:'right'}}>
++                    <div style={{fontWeight:800,fontSize:16,color: net>=0 ? 'var(--success)' : 'var(--danger)'}}>৳{net.toLocaleString()}</div>
++                    <div style={{fontSize:10.5,color:'var(--text3)'}}>{isOpen ? 'Tap to collapse ▲' : 'Tap to expand ▼'}</div>
++                  </div>
++                </div>
++                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:0,borderTop:'1px solid var(--border)'}}>
++                  <div style={{padding:'8px 16px',borderRight:'1px solid var(--border)'}}>
++                    <div style={{fontSize:10.5,color:'var(--success)',fontWeight:700,textTransform:'uppercase'}}>Income</div>
++                    <div style={{fontSize:14,fontWeight:700,color:'var(--success)'}}>৳{m.income.toLocaleString()}</div>
++                  </div>
++                  <div style={{padding:'8px 16px'}}>
++                    <div style={{fontSize:10.5,color:'var(--danger)',fontWeight:700,textTransform:'uppercase'}}>Expenses</div>
++                    <div style={{fontSize:14,fontWeight:700,color:'var(--danger)'}}>৳{m.expense.toLocaleString()}</div>
++                  </div>
++                </div>
++                {isOpen && (
++                  <div style={{borderTop:'1px solid var(--border)'}}>
++                    {allTx.length === 0 && <div style={{padding:16,textAlign:'center',color:'var(--text3)',fontSize:12.5}}>No transactions</div>}
++                    {allTx.map((t,i) => (
++                      <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 16px',borderTop:i>0?'1px solid var(--border)':'none'}}>
++                        <div style={{width:26,height:26,borderRadius:'50%',background:t.type==='in'?'#F0FDF4':'#FEF2F2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,color:t.type==='in'?'var(--success)':'var(--danger)',fontWeight:700,fontSize:12}}>
++                          {t.type==='in'?'↓':'↑'}
++                        </div>
++                        <div style={{flex:1,minWidth:0}}>
++                          <div style={{fontWeight:600,fontSize:12.5}}>{t.label}</div>
++                          <div style={{fontSize:11,color:'var(--text3)'}}>{t.sub} · {new Date(t.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</div>
++                        </div>
++                        <div style={{fontWeight:700,fontSize:12.5,color:t.type==='in'?'var(--success)':'var(--danger)'}}>
++                          {t.type==='in'?'+':'-'}৳{t.amount.toLocaleString()}
++                        </div>
++                      </div>
++                    ))}
++                  </div>
++                )}
++              </div>
++            )
++          })}
++        </div>
++      )}
++
+       {tab === 'p&l' && (
+         <div>
+           <div className="card mb-12">
+diff --git a/src/pages/NewCase.js b/src/pages/NewCase.js
+index 715dcb90..2c10aaa4 100644
+--- a/src/pages/NewCase.js
++++ b/src/pages/NewCase.js
+@@ -70,20 +70,28 @@ export default function NewCase() {
+     referred_by: ''
+   })
+   const [qty, setQty] = useState(1)
++  const [customPrice, setCustomPrice] = useState(false)
++  const [customAmount, setCustomAmount] = useState('')
++  const [discountReason, setDiscountReason] = useState('')
+ 
+   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+   const tier = TIERS.find(t => t.key === form.tier) || TIERS[0]
+-  const totalAmount = tier.price * qty
++  const standardAmount = tier.price * qty
++  const totalAmount = (customPrice && customAmount !== '') ? Number(customAmount) : standardAmount
+ 
+   const handleSubmit = async () => {
+     setError('')
+     setSaving(true)
+     // Apply defaults for optional fields
++    const discountNote = (customPrice && customAmount !== '' && Number(customAmount) !== standardAmount)
++      ? `[Custom price: ৳${Number(customAmount).toLocaleString()} instead of ৳${standardAmount.toLocaleString()}${discountReason ? ' — Reason: ' + discountReason : ''}]`
++      : ''
+     const finalForm = {
+       ...form,
+       client_name: form.client_name.trim() || 'প্রিয় গ্রাহক',
+       country: form.country || 'Other',
+       doc_type: form.doc_type || 'Other',
++      notes: [form.notes, discountNote].filter(Boolean).join('\n'),
+     }
+     try {
+       const { data: newCase, error: caseErr } = await createCase({
+@@ -277,12 +285,46 @@ export default function NewCase() {
+                   <button type="button" onClick={() => setQty(q => Math.max(1, q-1))} style={{ width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border2)', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                   <span style={{ fontSize: 24, fontWeight: 700, minWidth: 30, textAlign: 'center' }}>{qty}</span>
+                   <button type="button" onClick={() => setQty(q => Math.min(20, q+1))} style={{ width: 38, height: 38, borderRadius: 8, border: '1px solid var(--border2)', background: '#fff', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+-                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>× ৳{tier.price.toLocaleString()} = <strong style={{ color: 'var(--navy)', fontSize: 15 }}>৳{totalAmount.toLocaleString()}</strong></span>
++                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>× ৳{tier.price.toLocaleString()} = <strong style={{ color: 'var(--navy)', fontSize: 15 }}>৳{standardAmount.toLocaleString()}</strong></span>
+                 </div>
+               </div>
+             </div>
+           </div>
+ 
++          <div className="card mb-12">
++            <div className="card-header">
++              <span>Price override</span>
++              <button
++                type="button"
++                onClick={() => { setCustomPrice(v => !v); if (!customPrice) setCustomAmount(String(standardAmount)) }}
++                style={{ fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: '1px solid', cursor: 'pointer',
++                  background: customPrice ? 'var(--navy)' : '#fff', borderColor: customPrice ? 'var(--navy)' : 'var(--border2)', color: customPrice ? '#fff' : 'var(--text2)' }}>
++                {customPrice ? 'Custom price ON' : 'Apply discount / custom price'}
++              </button>
++            </div>
++            {customPrice && (
++              <div className="card-body">
++                <div className="form-row">
++                  <div className="form-group" style={{marginBottom:0}}>
++                    <label className="form-label">Final amount (৳)</label>
++                    <input className="form-input" type="number" min="0" value={customAmount} onChange={e => setCustomAmount(e.target.value)} placeholder={String(standardAmount)} />
++                  </div>
++                  <div className="form-group" style={{marginBottom:0}}>
++                    <label className="form-label">Reason (optional)</label>
++                    <input className="form-input" value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="e.g. loyal client, bulk case" />
++                  </div>
++                </div>
++                {customAmount !== '' && Number(customAmount) !== standardAmount && (
++                  <div style={{marginTop:8,fontSize:12,color: Number(customAmount) < standardAmount ? 'var(--success)' : 'var(--warning)', fontWeight:600}}>
++                    {Number(customAmount) < standardAmount
++                      ? `Discount: ৳${(standardAmount - Number(customAmount)).toLocaleString()} off standard price`
++                      : `৳${(Number(customAmount) - standardAmount).toLocaleString()} above standard price`}
++                  </div>
++                )}
++              </div>
++            )}
++          </div>
++
+           <div className="card mb-12">
+             <div className="card-header">Payment method</div>
+             <div className="card-body">
+@@ -301,6 +343,10 @@ export default function NewCase() {
+             </div>
+           </div>
+ 
++          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', marginBottom:10, background:'var(--info-bg)', borderRadius:8 }}>
++            <span style={{ fontSize:12.5, fontWeight:600, color:'var(--navy)' }}>Amount to charge</span>
++            <span style={{ fontSize:18, fontWeight:800, color:'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span>
++          </div>
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+             <button className="btn btn-full" onClick={() => setStep(1)}>← Back</button>
+             <button className="btn btn-primary btn-full" style={{ padding: 12 }} onClick={handleSubmit} disabled={saving}>
