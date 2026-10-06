@@ -112,8 +112,9 @@ export default function NewCase() {
       : new Date().toISOString()
 
     try {
+      const { client_email: _ce, intake_date: _id, ...caseForm } = finalForm
       const { data: newCase, error: caseErr } = await createCase({
-        ...finalForm,
+        ...caseForm,
         amount: totalAmount,
         qty,
         status: 'new',
