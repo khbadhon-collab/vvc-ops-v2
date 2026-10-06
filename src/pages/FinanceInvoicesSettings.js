@@ -365,7 +365,7 @@ export function Invoices() {
             </div>
             {/* Date */}
             <div style={{fontSize:12,color:'var(--text2)'}}>
-              {inv.created_at ? new Date(inv.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—'}
+              {(inv.invoice_date || inv.created_at) ? new Date(inv.invoice_date || inv.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—'}
             </div>
             {/* Status */}
             <div>
