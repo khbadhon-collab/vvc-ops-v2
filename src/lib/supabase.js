@@ -66,7 +66,7 @@ export const createInvoice = async (data) => {
     ...data,
     invoice_number: generateInvoiceNumber(),
     status: 'unpaid',
-    created_at: new Date().toISOString()
+    created_at: data.created_at || new Date().toISOString()
   }])
   return { error }
 }
