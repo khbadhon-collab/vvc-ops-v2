@@ -136,6 +136,7 @@ export default function NewCase() {
         lead_source: form.lead_source,
         assigned_to: form.assigned_to,
         referred_by: form.referred_by,
+        created_at: intakeDateISO,
       })
       setCreatedCase(newCase)
       setStep(3)
