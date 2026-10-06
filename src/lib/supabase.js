@@ -42,7 +42,7 @@ export const createCase = async (data) => {
     ...data,
     case_id: caseId,
     status: 'new',
-    created_at: new Date().toISOString()
+    created_at: data.created_at || new Date().toISOString()
   }])
   if (error) return { data: null, error }
   // Fetch the created case separately
