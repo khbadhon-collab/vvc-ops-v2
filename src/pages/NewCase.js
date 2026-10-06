@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createCase, createInvoice, buildWhatsAppLink, waInvoiceMessage } from '../lib/supabase'
-import { Upload, X, MessageCircle, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, X, MessageCircle, FileText, CheckCircle, AlertCircle, Edit2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const COUNTRIES = [
@@ -48,6 +48,12 @@ const TIERS = [
 const PAYMENT_METHODS = ['bKash Send Money', 'bKash Merchant', 'Nagad', 'Rocket', 'EBL Bank', 'Cash']
 const LEAD_SOURCES = ['Facebook Ads','WhatsApp','Phone Call','Facebook Organic','Referral','Other']
 
+// Today's date in YYYY-MM-DD local format
+const todayLocal = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export default function NewCase() {
   const navigate = useNavigate()
   const [paymentReceived, setPaymentReceived] = useState(false)
@@ -60,6 +66,12 @@ export default function NewCase() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [createdCase, setCreatedCase] = useState(null)
+
+  // Edit mode after case creation
+  const [editMode, setEditMode] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editSuccess, setEditSuccess] = useState(false)
+
   const [form, setForm] = useState({
     client_name: '', client_phone: '', client_email: '',
     country: '', doc_type: '', notes: '',
@@ -67,7 +79,8 @@ export default function NewCase() {
     payment_method: 'bKash Send Money',
     lead_source: 'WhatsApp',
     assigned_to: '',
-    referred_by: ''
+    referred_by: '',
+    intake_date: todayLocal()
   })
   const [qty, setQty] = useState(1)
   const [customPrice, setCustomPrice] = useState(false)
@@ -82,7 +95,6 @@ export default function NewCase() {
   const handleSubmit = async () => {
     setError('')
     setSaving(true)
-    // Apply defaults for optional fields
     const discountNote = (customPrice && customAmount !== '' && Number(customAmount) !== standardAmount)
       ? `[Custom price: ৳${Number(customAmount).toLocaleString()} instead of ৳${standardAmount.toLocaleString()}${discountReason ? ' — Reason: ' + discountReason : ''}]`
       : ''
@@ -93,13 +105,20 @@ export default function NewCase() {
       doc_type: form.doc_type || 'Other',
       notes: [form.notes, discountNote].filter(Boolean).join('\n'),
     }
+
+    // Build the created_at timestamp from intake_date
+    const intakeDateISO = form.intake_date
+      ? new Date(form.intake_date + 'T12:00:00').toISOString()
+      : new Date().toISOString()
+
     try {
       const { data: newCase, error: caseErr } = await createCase({
         ...finalForm,
         amount: totalAmount,
         qty,
         status: 'new',
-        ai_engine: 'gemini'
+        ai_engine: 'gemini',
+        created_at: intakeDateISO
       })
       if (caseErr) {
         setError(`Failed to create case: ${caseErr.message}`)
@@ -125,6 +144,30 @@ export default function NewCase() {
     setSaving(false)
   }
 
+  const handleEditSave = async () => {
+    if (!createdCase) return
+    setEditSaving(true)
+    setEditSuccess(false)
+    const { updateCase } = await import('../lib/supabase')
+    const intakeDateISO = form.intake_date
+      ? new Date(form.intake_date + 'T12:00:00').toISOString()
+      : createdCase.created_at
+    await updateCase(createdCase.id, {
+      client_name: form.client_name || 'প্রিয় গ্রাহক',
+      client_phone: form.client_phone,
+      country: form.country || 'Other',
+      doc_type: form.doc_type || 'Other',
+      lead_source: form.lead_source,
+      assigned_to: form.assigned_to,
+      referred_by: form.referred_by,
+      notes: form.notes,
+      created_at: intakeDateISO
+    })
+    setEditSaving(false)
+    setEditSuccess(true)
+    setEditMode(false)
+  }
+
   const waLink = createdCase
     ? buildWhatsAppLink(form.client_phone, waInvoiceMessage(form.client_name || 'প্রিয় গ্রাহক', createdCase.case_id, totalAmount, form.payment_method))
     : '#'
@@ -132,11 +175,9 @@ export default function NewCase() {
   const markPaymentReceived = async () => {
     if (!createdCase) return
     const { markInvoicePaid, getInvoices } = await import('../lib/supabase')
-    // find invoice for this case and mark paid
     const { data: invs } = await getInvoices()
     const inv = invs?.find(i => i.case_ref === createdCase.case_id)
     if (inv) await markInvoicePaid(inv.id, form.payment_method)
-    // update case payment status
     const { updateCase } = await import('../lib/supabase')
     await updateCase(createdCase.id, { payment_status: 'received' })
     setPaymentReceived(true)
@@ -151,17 +192,103 @@ export default function NewCase() {
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Case created!</h2>
           <p style={{ color: 'var(--text2)', fontSize: 13 }}>{createdCase.case_id}</p>
         </div>
-        <div className="card mb-16">
-          <div className="card-header">Invoice ready to send</div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Client</span><span>{form.client_name}</span></div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Case ID</span><span>{createdCase.case_id}</span></div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Service</span><span>{tier.label} · {tier.time}</span></div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Persons</span><span>{qty} person{qty > 1 ? 's' : ''}</span></div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Payment</span><span>{form.payment_method}</span></div>
-          <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Lead source</span><span>{form.lead_source}</span></div>
-          {form.assigned_to && <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Handled by</span><span>{staffList.find(s=>s.id===form.assigned_to)?.name||'—'}</span></div>}
-          <div className="inv-line total"><span>Total</span><span style={{ color: 'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span></div>
-        </div>
+
+        {/* Invoice summary */}
+        {!editMode && (
+          <div className="card mb-12">
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Invoice ready to send</span>
+              <button
+                onClick={() => { setEditMode(true); setEditSuccess(false) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: 'var(--navy)', background: 'var(--info-bg)', border: '1px solid var(--navy)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}
+              >
+                <Edit2 size={12} /> Edit
+              </button>
+            </div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Client</span><span>{form.client_name || 'প্রিয় গ্রাহক'}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Phone</span><span>{form.client_phone || '—'}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Case ID</span><span>{createdCase.case_id}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Date</span><span>{form.intake_date}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Service</span><span>{tier.label} · {tier.time}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Persons</span><span>{qty} person{qty > 1 ? 's' : ''}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Payment</span><span>{form.payment_method}</span></div>
+            <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Lead source</span><span>{form.lead_source}</span></div>
+            {form.assigned_to && <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Handled by</span><span>{staffList.find(s=>s.id===form.assigned_to)?.name||'—'}</span></div>}
+            {form.referred_by && <div className="inv-line"><span style={{ color: 'var(--text2)' }}>Referred by</span><span>{form.referred_by}</span></div>}
+            <div className="inv-line total"><span>Total</span><span style={{ color: 'var(--navy)' }}>৳{totalAmount.toLocaleString()}</span></div>
+          </div>
+        )}
+
+        {/* Edit panel */}
+        {editMode && (
+          <div className="card mb-12">
+            <div className="card-header">Edit case details</div>
+            <div className="card-body">
+              <div className="form-group">
+                <label className="form-label">Full name</label>
+                <input className="form-input" placeholder="প্রিয় গ্রাহক" value={form.client_name} onChange={e => set('client_name', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">WhatsApp number</label>
+                <input className="form-input" placeholder="+880 1XXXXXXXXX" value={form.client_phone} onChange={e => set('client_phone', e.target.value)} type="tel" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Case date</label>
+                <input className="form-input" type="date" value={form.intake_date} onChange={e => set('intake_date', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Destination country</label>
+                <select className="form-select" value={form.country} onChange={e => set('country', e.target.value)}>
+                  <option value="">Select country</option>
+                  {COUNTRIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Document type</label>
+                <select className="form-select" value={form.doc_type} onChange={e => set('doc_type', e.target.value)}>
+                  <option value="">Select type</option>
+                  {DOC_TYPES.map(d => <option key={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="form-row">
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Lead source</label>
+                  <select className="form-select" value={form.lead_source} onChange={e => set('lead_source', e.target.value)}>
+                    {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{marginBottom:0}}>
+                  <label className="form-label">Handled by</label>
+                  <select className="form-select" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
+                    <option value="">— Select staff —</option>
+                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group" style={{marginTop:10}}>
+                <label className="form-label">Referred by</label>
+                <input className="form-input" placeholder="Who referred this client?" value={form.referred_by} onChange={e => set('referred_by', e.target.value)} />
+              </div>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Notes</label>
+                <textarea className="form-textarea" placeholder="Any extra context..." value={form.notes} onChange={e => set('notes', e.target.value)} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 16px 16px' }}>
+              <button className="btn btn-full" onClick={() => setEditMode(false)}>Cancel</button>
+              <button className="btn btn-primary btn-full" onClick={handleEditSave} disabled={editSaving}>
+                {editSaving ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {editSuccess && (
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>
+            <CheckCircle size={15} /> Case details updated successfully
+          </div>
+        )}
+
         <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <MessageCircle size={20} color="#25D366" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
@@ -182,7 +309,14 @@ export default function NewCase() {
           </button>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <button className="btn btn-full" onClick={() => { setStep(1); setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money', lead_source:'WhatsApp', assigned_to:'', referred_by:'' }); setQty(1); setCreatedCase(null) }}>New case</button>
+          <button className="btn btn-full" onClick={() => {
+            setStep(1)
+            setForm({ client_name:'', client_phone:'', client_email:'', country:'', doc_type:'', notes:'', tier:'basic', ai_engine:'gemini', payment_method:'bKash Send Money', lead_source:'WhatsApp', assigned_to:'', referred_by:'', intake_date: todayLocal() })
+            setQty(1)
+            setCreatedCase(null)
+            setEditMode(false)
+            setEditSuccess(false)
+          }}>New case</button>
           <button className="btn btn-primary btn-full" onClick={() => navigate(`/cases/${createdCase.id}`)}>Open case →</button>
         </div>
       </div>
@@ -222,6 +356,10 @@ export default function NewCase() {
                 <input className="form-input" placeholder="+880 1XXXXXXXXX" value={form.client_phone} onChange={e => set('client_phone', e.target.value)} type="tel" />
               </div>
               <div className="form-group">
+                <label className="form-label">Case date</label>
+                <input className="form-input" type="date" value={form.intake_date} onChange={e => set('intake_date', e.target.value)} max={todayLocal()} />
+              </div>
+              <div className="form-group">
                 <label className="form-label">Destination country (optional)</label>
                 <select className="form-select" value={form.country} onChange={e => set('country', e.target.value)}>
                   <option value="">Select country</option>
@@ -239,7 +377,7 @@ export default function NewCase() {
                 <div className="form-group" style={{marginBottom:0}}>
                   <label className="form-label">Lead source</label>
                   <select className="form-select" value={form.lead_source} onChange={e => set('lead_source', e.target.value)}>
-                    {['WhatsApp','Facebook Ads','Facebook Organic','Phone Call','Referral','Other'].map(s => <option key={s}>{s}</option>)}
+                    {LEAD_SOURCES.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="form-group" style={{marginBottom:0}}>
