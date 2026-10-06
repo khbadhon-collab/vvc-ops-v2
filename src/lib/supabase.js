@@ -62,11 +62,13 @@ export const getInvoices = () =>
   supabase.from('invoices').select('*').order('created_at', { ascending: false })
 
 export const createInvoice = async (data) => {
+  const intakeDate = data.created_at || new Date().toISOString()
   const { error } = await supabase.from('invoices').insert([{
     ...data,
     invoice_number: generateInvoiceNumber(),
     status: 'unpaid',
-    created_at: data.created_at || new Date().toISOString()
+    created_at: intakeDate,
+    invoice_date: intakeDate.slice(0, 10)
   }])
   return { error }
 }
