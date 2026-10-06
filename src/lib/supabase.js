@@ -36,7 +36,7 @@ export const getCaseById = (id) =>
   supabase.from('cases').select('*').eq('id', id).single()
 
 export const createCase = async (data) => {
-  const caseId = generateCaseId()
+  const caseId = generateCaseId(data.created_at)
   // Use insert WITHOUT .select() to avoid RLS select policy issue
   const { error } = await supabase.from('cases').insert([{
     ...data,
@@ -93,8 +93,8 @@ export const addExpense = async (data) => {
 }
 
 // ── HELPERS ──
-export const generateCaseId = () => {
-  const d = new Date()
+export const generateCaseId = (intakeDate) => {
+  const d = intakeDate ? new Date(intakeDate) : new Date()
   const date = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
   const seq = String(Math.floor(1000 + Math.random() * 9000))
   return `VVC-${date}-${seq}`
