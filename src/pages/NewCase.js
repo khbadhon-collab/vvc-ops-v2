@@ -137,6 +137,7 @@ export default function NewCase() {
         assigned_to: form.assigned_to,
         referred_by: form.referred_by,
         created_at: intakeDateISO,
+        invoice_date: form.intake_date,
       })
       setCreatedCase(newCase)
       setStep(3)
